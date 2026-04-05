@@ -1,0 +1,10 @@
+[2026-04-04 14:14:37] SMS to Customer: Your MedCare order #-OpNHMNwW397hn_PxuBt is out for delivery! Give this OTP to the delivery partner: 993756
+[2026-04-04 14:20:56] SMS to Customer: MedCare Warning: Your delivery OTP was regenerated. New code for order #-OpNHMNwW397hn_PxuBt is: 366149
+[2026-04-04 14:26:12] SMS to Customer: Your MedCare order #-OpNS8fZYTaWQ8WhOT1q is out for delivery! Give this OTP to the delivery partner: 919208
+[2026-04-04 17:26:10] SMS to Customer: Your MedCare order #-OpO1f8amKg_aN2Kt62x is out for delivery! Give this OTP to the delivery partner: 649056
+[2026-04-04 17:47:56] SMS to Customer: Your MedCare order #-OpOAPcFtoG8sXT_9Lqy is out for delivery! Give this OTP to the delivery partner: 564334
+[2026-04-04 18:04:18] SMS to Customer: Your MedCare order #-OpODGTF7jr8Vf9YtXBm is out for delivery! Give this OTP to the delivery partner: 477555
+[2026-04-04 18:08:44] SMS to Customer: Your MedCare order #-OpOFAObOQ29yZUEvR80 is out for delivery! Give this OTP to the delivery partner: 905335
+[2026-04-04 20:03:09] SMS to Customer: Your MedCare order #-OpOeL9HX74FAVL1LoEV is out for delivery! Give this OTP to the delivery partner: 388752
+[2026-04-04 20:13:53] SMS to Customer: Your MedCare order #-OpOgh23QV4xqrnG5BFg is out for delivery! Give this OTP to the delivery partner: 903943
+[2026-04-05 10:35:39] SMS to Customer: Your MedCare order #-OpRfq9eNxotGKz5SH7c is out for delivery! Give this OTP to the delivery partner: 144492

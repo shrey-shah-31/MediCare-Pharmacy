@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare â€” My Account</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<!-- Firebase SDK for auto token refresh -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB6sdvexQIxMKihrUJAEwBHl71_Znagv1U",
+    authDomain: "medcare-pharmacy-11f7c.firebaseapp.com",
+    databaseURL: "https://medcare-pharmacy-11f7c-default-rtdb.firebaseio.com",
+    projectId: "medcare-pharmacy-11f7c",
+    storageBucket: "medcare-pharmacy-11f7c.appspot.com",
+    messagingSenderId: "660996601166",
+    appId: "1:660996601166:web:7e0a2f8a1e5195a1915a1f"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Expose a global that always returns a fresh token, or null if signed out
+  window._getIdToken = () => {
+    return new Promise((resolve) => {
+      const user = auth.currentUser;
+      if (user) {
+        user.getIdToken(/* forceRefresh= */ true)
+          .then(token => {
+            localStorage.setItem('medcare_token', token); // keep in sync
+            resolve(token);
+          })
+          .catch(() => resolve(null));
+      } else {
+        // Fall back to stored token (may be expired, but best effort)
+        resolve(localStorage.getItem('medcare_token'));
+      }
+    });
+  };
+
+  onAuthStateChanged(auth, user => {
+    if (!user && !localStorage.getItem('medcare_token')) {
+      window.location.href = 'auth.html';
+    }
+  });
+</script>
+<style>
+.dashboard-layout { display: grid; grid-template-columns: 260px 1fr; gap: 40px; margin: 40px 0 80px; }
+.dash-sidebar { display: flex; flex-direction: column; gap: 8px; }
+.dash-tab { padding: 14px 20px; font-weight: 500; border-radius: var(--radius-sm); color: var(--gray600); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+.dash-tab:hover { background: var(--gray50); color: var(--g600); }
+.dash-tab.active { background: var(--g50); color: var(--g700); font-weight: 600; box-shadow: inset 3px 0 0 var(--g600); }
+.dash-main { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 32px; }
+.order-card { border: 1.5px solid var(--gray100); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; }
+.order-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--gray100); padding-bottom: 12px; margin-bottom: 12px; }
+.order-id { font-weight: 600; font-family: var(--font-display); color: var(--gray900); }
+.order-date { font-size: 12px; color: var(--gray400); }
+.order-status { font-size: 11px; font-weight: 700; background: var(--g100); color: var(--g700); padding: 4px 10px; border-radius: var(--radius-full); text-transform: uppercase; }
+.order-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.o-item { display: flex; justify-content: space-between; font-size: 14px; color: var(--gray600); }
+.order-total { display: flex; justify-content: space-between; font-weight: 600; color: var(--gray900); }
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" class="scrolled">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="shop.html" class="btn btn-outline" style="padding:10px 20px;font-size:14px;">Shop Medicines</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <h1 class="section-title" style="text-align: left; font-size: 28px; margin-top:40px;">Customer Dashboard</h1>
+  
+  <div class="dashboard-layout">
+    <div class="dash-sidebar">
+      <div class="dash-tab active" id="tab-orders" onclick="switchCustomerTab('orders')"><i class="fa-solid fa-box"></i> Order History</div>
+      <div class="dash-tab" id="tab-labs" onclick="switchCustomerTab('labs')"><i class="fa-solid fa-flask-vial"></i> My Lab Tests</div>
+      <div class="dash-tab" id="tab-profile" onclick="switchCustomerTab('profile')"><i class="fa-solid fa-user"></i> Edit Profile</div>
+      <div class="dash-tab" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
+    </div>
+
+    <div class="dash-main">
+      <div id="view-orders">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Your Recent Orders</h3>
+        <div id="orders-list">
+          <div style="text-align:center; padding: 40px; color: var(--gray400);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+      </div>
+      
+      <div id="view-labs" style="display:none;">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Your Lab Tests</h3>
+        <div id="labs-list">
+          <div style="text-align:center; padding: 40px; color: var(--gray400);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+      </div>
+      
+      <div id="view-profile" style="display:none;">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Edit Profile</h3>
+        <div class="order-card" style="background: white;">
+          <form onsubmit="saveProfile(event)">
+            <div class="form-group" style="margin-bottom:16px;">
+              <label style="display:block; font-size:13px; font-weight:600; color:var(--gray700); margin-bottom:6px;">Full Name</label>
+              <input type="text" id="prof-name" required style="width:100%; padding:14px; border:1.5px solid var(--gray200); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:15px; outline:none;">
+            </div>
+            <div class="form-group" style="margin-bottom:16px;">
+              <label style="display:block; font-size:13px; font-weight:600; color:var(--gray700); margin-bottom:6px;">Phone Number (For Delivery)</label>
+              <input type="tel" id="prof-phone" placeholder="Enter your phone number" required style="width:100%; padding:14px; border:1.5px solid var(--gray200); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:15px; outline:none;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div class="form-group" style="margin:0;">
+                <label style="display:block; font-size:13px; font-weight:600; color:var(--gray700); margin-bottom:6px;">City</label>
+                <input type="text" id="prof-city" required style="width:100%; padding:14px; border:1.5px solid var(--gray200); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:15px; outline:none;">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="display:block; font-size:13px; font-weight:600; color:var(--gray700); margin-bottom:6px;">State</label>
+                <input type="text" id="prof-state" required style="width:100%; padding:14px; border:1.5px solid var(--gray200); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:15px; outline:none;">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:24px;">
+              <label style="display:block; font-size:13px; font-weight:600; color:var(--gray700); margin-bottom:6px;">Full Delivery Address</label>
+              <textarea id="prof-address" rows="4" required style="width:100%; padding:14px; border:1.5px solid var(--gray200); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:15px; outline:none;"></textarea>
+            </div>
+            <button type="submit" id="btn-save-prof" class="btn btn-primary" style="width:100%; padding:14px; font-size:16px;">Save Details</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function logout() {
+    localStorage.removeItem('medcare_token');
+    localStorage.removeItem('medcare_uid');
+    localStorage.removeItem('medcare_role');
+    localStorage.removeItem('medcare_name');
+    window.location.href = 'index.html';
+}
+
+async function fetchOrders(isPoll = false) {
+    const uid = localStorage.getItem('medcare_uid') || localStorage.getItem('medcare_token');
+    if (!uid) { window.location.href = 'auth.html'; return; }
+    
+    try {
+        const res = await fetchWithAuth(`api/user_orders.php?uid=${encodeURIComponent(uid)}`);
+        const data = await res.json();
+        
+        const dataStr = JSON.stringify(data);
+        if (isPoll && dataStr === lastOrdersString) return;
+        lastOrdersString = dataStr;
+        
+        const list = document.getElementById('orders-list');
+        if (data.length === 0) {
+            list.innerHTML = '<p style="color:var(--gray500);">No orders found.</p>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(order => {
+            const date = new Date(order.timestamp * 1000).toLocaleDateString();
+            
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `<div class="o-item"><span>${item.quantity}x ${item.name}</span> <span>&#8377;${(item.price * item.quantity).toFixed(2)}</span></div>`;
+            });
+            
+            let otpHtml = '';
+            if (order.status === 'Shipped' && order.delivery_otp) {
+                otpHtml = `
+                <div style="margin-top:16px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:2px solid #3B82F6; border-radius:12px; padding:16px; text-align:center;">
+                    <div style="font-size:11px; font-weight:700; color:#1E40AF; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;">
+                        <i class="fa-solid fa-shield-halved" style="margin-right:4px;"></i>Your Delivery OTP
+                    </div>
+                    <div style="font-family:monospace; font-size:32px; font-weight:800; letter-spacing:8px; color:#1D4ED8;">${order.delivery_otp}</div>
+                    <div style="font-size:11px; color:#3B82F6; margin-top:6px;">Share only with your delivery partner at the door.</div>
+                </div>`;
+            }
+            
+            let trackBtn = '';
+            if (order.status === 'Shipped' || order.status === 'Confirmed' || order.status === 'Pending') {
+                trackBtn = `<a href="tracking.html?id=${order.id}" class="btn btn-primary" style="font-size:12px; padding:8px 16px; text-decoration:none; display:inline-block; margin-top:12px;"><i class="fa-solid fa-location-dot"></i> Track Order</a>`;
+            }
+            
+            const shopName = (order.items && order.items.length > 0 && order.items[0].shop_name) 
+                               ? order.items[0].shop_name 
+                               : 'MediCare Pharmacy';
+
+            html += `
+            <div class="order-card">
+              <div class="order-header">
+                <div>
+                  <div class="order-id">#ORD-${order.id.slice(-6).toUpperCase()}</div>
+                  <div class="order-date">${date} &bull; Sold by <span style="font-weight:600; color:var(--g600);">${shopName}</span></div>
+                </div>
+                <div class="order-status">${order.status}</div>
+              </div>
+              <div class="order-items">${itemsHtml}</div>
+              <div class="order-total"><span>Total Amount</span> <span>&#8377;${order.total_amount.toFixed(2)}</span></div>
+              ${otpHtml}
+              ${trackBtn}
+            </div>`;
+        });
+        
+        list.innerHTML = html;
+        
+    } catch(err) {
+        document.getElementById('orders-list').innerHTML = '<p style="color:red;">Error loading orders.</p>';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchOrders();
+    fetchUserLabs();
+    startPolling();
+});
+
+let lastOrdersString = '';
+let lastLabsString = '';
+let pollInterval;
+
+function startPolling() {
+    if (!pollInterval) {
+        pollInterval = setInterval(() => {
+            if (document.getElementById('view-orders').style.display !== 'none') fetchOrders(true);
+            if (document.getElementById('view-labs').style.display !== 'none') fetchUserLabs(true);
+        }, 3000);
+    }
+}
+
+function switchCustomerTab(view) {
+    ['orders', 'labs', 'profile'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.remove('active');
+        document.getElementById(`view-${t}`).style.display = 'none';
+    });
+    document.getElementById(`tab-${view}`).classList.add('active');
+    document.getElementById(`view-${view}`).style.display = 'block';
+    if (view === 'profile') fetchProfile();
+}
+
+async function fetchUserLabs(isPoll = false) {
+    const uid = localStorage.getItem('medcare_uid') || localStorage.getItem('medcare_token');
+    if (!uid) return;
+    
+    try {
+        const res = await fetchWithAuth(`api/lab_bookings.php?role=customer&customer_id=${uid}`);
+        const data = await res.json();
+        
+        const dataStr = JSON.stringify(data);
+        if (isPoll && dataStr === lastLabsString) return;
+        lastLabsString = dataStr;
+        
+        const list = document.getElementById('labs-list');
+        if (data.length === 0) {
+            list.innerHTML = '<p style="color:var(--gray500);">No lab tests booked yet.</p>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(b => {
+            const date = new Date(b.timestamp * 1000).toLocaleDateString();
+            
+            let statusBtn = '';
+            if (b.status === 'Report Ready') {
+                if (b.report_url) {
+                    statusBtn = `<a href="${b.report_url}" target="_blank" download class="btn btn-primary" style="padding: 6px 12px; font-size:12px; text-decoration:none; display:inline-block;"><i class="fa-solid fa-download"></i> Download Report</a>`;
+                } else {
+                    statusBtn = `<button class="btn btn-primary" style="padding: 6px 12px; font-size:12px;" onclick="downloadReport()"><i class="fa-solid fa-download"></i> Download Report</button>`;
+                }
+            }
+
+            // Show OTP box when lab has confirmed the booking and generated an OTP
+            let labOtpHtml = '';
+            if (b.status === 'Confirmed' && b.sample_otp) {
+                labOtpHtml = `
+                <div style="margin-top:16px; background:linear-gradient(135deg,#F5F3FF,#EDE9FE); border:2px solid #8B5CF6; border-radius:12px; padding:16px; text-align:center;">
+                    <div style="font-size:11px; font-weight:700; color:#5B21B6; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;">
+                        <i class="fa-solid fa-flask" style="margin-right:4px;"></i>Your Sample Collection OTP
+                    </div>
+                    <div style="font-family:monospace; font-size:32px; font-weight:800; letter-spacing:8px; color:#6D28D9;">${b.sample_otp}</div>
+                    <div style="font-size:11px; color:#7C3AED; margin-top:8px;">Share this OTP with the phlebotomist when they arrive to collect your sample.</div>
+                </div>`;
+            }
+            
+            html += `
+            <div class="order-card">
+              <div class="order-header" style="align-items:center;">
+                <div>
+                  <div class="order-id">#LAB-${b.id.slice(-6).toUpperCase()}</div>
+                  <div class="order-date">Booked on: ${date}</div>
+                </div>
+                <div class="order-status" style="background:#E0E7FF; color:#3730A3;">${b.status}</div>
+              </div>
+              <div class="order-items">
+                <div class="o-item" style="color:var(--g700); font-weight:600;">${b.test_name}</div>
+                <div class="o-item">Slot: ${b.booking_date} | ${b.time_slot}</div>
+                <div class="o-item">Patient: ${b.patient_name} (Age: ${b.patient_age})</div>
+              </div>
+              ${labOtpHtml}
+              <div class="order-total" style="margin-top:16px; display:flex; align-items:center;">
+                 <div style="flex:1;">${statusBtn}</div>
+                 <div>Total Amount: &#8377;${b.price.toFixed(2)}</div>
+              </div>
+            </div>`;
+        });
+        
+        list.innerHTML = html;
+        
+    } catch(err) {
+        document.getElementById('labs-list').innerHTML = '<p style="color:red;">Error loading lab tests.</p>';
+    }
+}
+
+function downloadReport() {
+    alert("Report currently unavailable or still processing.");
+}
+
+async function fetchProfile() {
+    // Always get a fresh token (auto-refreshes if expired)
+    const idToken = window._getIdToken
+        ? await window._getIdToken()
+        : localStorage.getItem('medcare_token');
+    if (!idToken) return;
+    try {
+        console.log("Fetching profile with token...");
+        const res = await fetchWithAuth(`api/get_profile.php?idToken=${encodeURIComponent(idToken)}`);
+
+        let data = null;
+        try { data = await res.json(); } catch(jsonErr) {
+            console.warn("Profile API returned non-JSON body:", jsonErr);
+            return;
+        }
+
+        console.log("Profile fetch response:", data);
+
+        if (data && !data.error) {
+            document.getElementById('prof-name').value    = data.name    || '';
+            document.getElementById('prof-phone').value   = data.phone   || '';
+            document.getElementById('prof-city').value    = data.city    || '';
+            document.getElementById('prof-state').value   = data.state   || '';
+            document.getElementById('prof-address').value = data.address || '';
+        } else {
+            const msg = data ? data.error : 'Empty response from server';
+            console.warn("Profile not loaded:", msg);
+        }
+    } catch(err) {
+        console.error('Error fetching profile API', err);
+    }
+}
+
+async function saveProfile(e) {
+    e.preventDefault();
+    // Always get a fresh token before saving
+    const idToken = window._getIdToken
+        ? await window._getIdToken()
+        : localStorage.getItem('medcare_token');
+    if (!idToken) { alert('Session expired. Please log in again.'); window.location.href='auth.html'; return; }
+    const btn = document.getElementById('btn-save-prof');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    
+    const payload = {
+        idToken: idToken,
+        name: document.getElementById('prof-name').value,
+        phone: document.getElementById('prof-phone').value,
+        city: document.getElementById('prof-city').value,
+        state: document.getElementById('prof-state').value,
+        address: document.getElementById('prof-address').value
+    };
+    
+    console.log("Saving profile", payload);
+    try {
+        const res = await fetchWithAuth('api/update_profile.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const responseData = await res.json();
+        console.log("Save profile response:", responseData);
+        if (res.ok) {
+            alert('Profile updated successfully!');
+            localStorage.setItem('medcare_name', payload.name); 
+        } else {
+            alert('Error updating profile: ' + (responseData.error || 'Unknown error'));
+        }
+    } catch(err) { 
+        console.error("Save profile caught error:", err);
+        alert('Network error'); 
+    }
+    btn.innerHTML = 'Save Details';
+}
+</script>
+</body>
+</html>
+

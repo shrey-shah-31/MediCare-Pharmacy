@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Lab Tests</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+.lab-header { text-align: center; padding: 40px 0; background: var(--g50); border-radius: var(--radius-lg); margin: 40px 0 24px; }
+.test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-bottom: 80px; }
+.test-card { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-md); padding: 24px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; display: flex; flex-direction: column; }
+.test-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); border-color: var(--g300); }
+.tc-icon { width: 48px; height: 48px; background: var(--g50); color: var(--g600); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
+.tc-name { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--gray900); margin-bottom: 8px; }
+.tc-desc { font-size: 14px; color: var(--gray500); line-height: 1.5; margin-bottom: 16px; flex: 1; }
+.tc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--gray100); }
+.tc-price { font-size: 18px; font-weight: 700; color: var(--g700); }
+
+/* Filter bar */
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    background: white;
+    border: 1.5px solid var(--gray200);
+    border-radius: var(--radius-md);
+    padding: 14px 20px;
+}
+.filter-bar label { font-size: 13px; font-weight: 600; color: var(--gray600); white-space: nowrap; }
+.filter-input {
+    flex: 1;
+    min-width: 180px;
+    padding: 8px 12px 8px 36px;
+    border: 1.5px solid var(--gray200);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+    background: var(--gray50);
+}
+.filter-input:focus { border-color: var(--g400); background: white; }
+.city-wrapper { position: relative; flex: 1; min-width: 180px; }
+.city-wrapper .fa-location-dot { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--gray400); font-size: 13px; }
+.sort-select {
+    padding: 8px 36px 8px 12px;
+    border: 1.5px solid var(--gray200);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--gray50);
+    color: var(--gray800);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    outline: none;
+}
+.sort-select:focus { border-color: var(--g400); }
+.results-count { font-size: 13px; color: var(--gray500); margin-bottom: 12px; }
+.no-results { grid-column: 1/-1; text-align:center; padding: 60px 40px; color: var(--gray500); }
+.no-results i { font-size: 40px; color: var(--gray300); margin-bottom: 12px; display:block; }
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" class="scrolled">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <div id="auth-buttons">
+            <a href="auth.html?role=customer" style="background:#E0F7FA; color:#00838F; border:1px solid #B2EBF2; padding:10px 20px; font-size:14px; border-radius:6px; font-weight:600; text-decoration:none; margin-right:8px;">Customer Login</a>
+            <a href="auth.html?role=retailer" style="background:#3B82F6; color:white; border:1px solid #3B82F6; padding:10px 20px; font-size:14px; border-radius:6px; font-weight:600; text-decoration:none;">Partner Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <div class="lab-header">
+    <h1 class="section-title">Schedule a Lab Test at Home</h1>
+    <p class="section-sub">Choose from our wide range of health checkups. Professionally collected from the comfort of your home.</p>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="city-wrapper">
+      <i class="fa-solid fa-location-dot"></i>
+      <input class="filter-input" id="city-filter" type="text" placeholder="Filter by city..." oninput="applyFilters()">
+    </div>
+    <div class="city-wrapper">
+      <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--gray400); font-size:13px;"></i>
+      <input class="filter-input" id="name-filter" type="text" placeholder="Search test name..." oninput="applyFilters()">
+    </div>
+    <select class="sort-select" id="sort-select" onchange="applyFilters()">
+      <option value="default">Sort by: Most Popular</option>
+      <option value="price_asc">Price: Low to High</option>
+      <option value="price_desc">Price: High to Low</option>
+      <option value="name_asc">Name: A → Z</option>
+      <option value="name_desc">Name: Z → A</option>
+    </select>
+  </div>
+  <div class="results-count" id="results-count"></div>
+
+  <div class="test-grid" id="test-grid">
+    <div style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--gray500);">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading lab tests...
+    </div>
+  </div>
+</div>
+
+<script>
+let allTests = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    const userRole = localStorage.getItem('medcare_role');
+    const userName = localStorage.getItem('medcare_name');
+    const authContainer = document.getElementById('auth-buttons');
+    if (userRole) {
+        let link = userRole === 'retailer' ? 'retailer.html' : 'customer_dashboard.html';
+        authContainer.innerHTML = `<a href="${link}" style="font-size:14px; margin-right:16px; font-weight:600; color:var(--gray700); text-decoration:none;">Hi, ${userName}</a>
+        <button onclick="logout()" class="btn btn-outline" style="padding:8px 16px;font-size:13px;">Logout</button>`;
+    }
+    fetchLabTests();
+});
+
+function logout() {
+    localStorage.clear();
+    window.location.reload();
+}
+
+async function fetchLabTests() {
+    try {
+        const uid = localStorage.getItem('medcare_uid');
+        const url = uid ? `api/lab_tests.php?customer_id=${uid}` : 'api/lab_tests.php';
+        const res = await fetchWithAuth(url);
+        const data = await res.json();
+        allTests = data;
+        applyFilters();
+    } catch(err) {
+        document.getElementById('test-grid').innerHTML = '<p style="color:red; text-align:center;">Failed to load lab tests.</p>';
+    }
+}
+
+function applyFilters() {
+    const cityVal = document.getElementById('city-filter').value.trim().toLowerCase();
+    const nameVal = document.getElementById('name-filter').value.trim().toLowerCase();
+    const sortVal = document.getElementById('sort-select').value;
+
+    let filtered = allTests.filter(t => {
+        const cityMatch = !cityVal || (t.lab_city || '').toLowerCase().includes(cityVal);
+        const nameMatch = !nameVal || (t.name || '').toLowerCase().includes(nameVal);
+        return cityMatch && nameMatch;
+    });
+
+    // Sort
+    if (sortVal === 'price_asc') {
+        filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    } else if (sortVal === 'price_desc') {
+        filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    } else if (sortVal === 'name_asc') {
+        filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sortVal === 'name_desc') {
+        filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    }
+
+    renderTests(filtered);
+}
+
+function renderTests(data) {
+    const countEl = document.getElementById('results-count');
+    countEl.textContent = data.length > 0 ? `Showing ${data.length} test${data.length > 1 ? 's' : ''}` : '';
+
+    if (data.length === 0) {
+        document.getElementById('test-grid').innerHTML = `
+            <div class="no-results">
+                <i class="fa-solid fa-flask"></i>
+                <div style="font-weight:600; font-size:16px; margin-bottom:6px;">No tests found</div>
+                <div>Try a different city or search term.</div>
+            </div>`;
+        return;
+    }
+
+    let html = '';
+    data.forEach(t => {
+        html += `
+        <div class="test-card" onclick="window.location.href='lab_test_details.html?id=${t.id}'">
+            <div class="tc-icon"><i class="fa-solid ${t.icon || 'fa-vial'}"></i></div>
+            <div class="tc-name">${t.name}</div>
+            <div class="tc-desc">${t.description}</div>
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 12px; color: var(--gray500); margin-bottom: 2px;">Laboratory:</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--gray900);">
+                    <i class="fa-solid fa-vial-virus" style="color: var(--g500); margin-right: 4px;"></i>${t.lab_name || 'City PathLabs'}
+                </div>
+                ${t.lab_city ? `<div style="font-size: 13px; color: var(--gray500); margin-top: 4px;"><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i>${t.lab_city}</div>` : ''}
+            </div>
+            <div class="tc-footer">
+                <div class="tc-price">&#8377;${parseFloat(t.price).toFixed(2)}</div>
+                <div style="font-size:13px; font-weight:600; color:var(--g600);">Book Now <i class="fa-solid fa-arrow-right"></i></div>
+            </div>
+        </div>
+        `;
+    });
+    document.getElementById('test-grid').innerHTML = html;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Order Tracking</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+.tracking-container { max-width: 680px; margin: 40px auto 80px; }
+.tracking-card { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-xl); padding: 40px; box-shadow: var(--shadow-lg); text-align: center; }
+.success-icon { width: 80px; height: 80px; background: var(--g100); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--g600); font-size: 36px; margin: 0 auto 24px; animation: bounceIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.tracking-title { font-family: var(--font-display); font-size: 28px; font-weight: 600; margin-bottom: 8px; color: var(--gray900); }
+.tracking-subtitle { font-size: 15px; color: var(--gray500); margin-bottom: 40px; }
+.progress-wrapper { position: relative; margin: 40px 0; }
+.progress-line { position: absolute; top: 16px; left: 10%; right: 10%; height: 4px; background: var(--gray200); border-radius: 2px; z-index: 1; }
+.progress-line-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--g600); width: 0%; transition: width 1.5s ease-out; }
+.progress-steps { display: flex; justify-content: space-between; position: relative; z-index: 2; }
+.progress-step { display: flex; flex-direction: column; align-items: center; width: 80px; }
+.step-icon { width: 36px; height: 36px; background: white; border: 3px solid var(--gray200); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gray400); font-size: 14px; margin-bottom: 12px; transition: all 0.5s; background: white; }
+.step-label { font-size: 13px; font-weight: 600; color: var(--gray500); text-align: center; }
+.progress-step.active .step-icon { border-color: var(--g600); background: var(--g600); color: white; box-shadow: 0 0 0 4px var(--g100); }
+.progress-step.active .step-label { color: var(--gray900); }
+
+@keyframes bounceIn {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="shop.html" class="btn btn-outline" style="padding:10px 20px;font-size:14px;">Continue Shopping</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <div class="tracking-container">
+    <div class="tracking-card">
+      <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+      <h1 class="tracking-title" id="t-title">Order Placed Successfully!</h1>
+      <p class="tracking-subtitle" id="t-sub">Your order <strong style="color:var(--gray800);">#ORD-28945</strong> has been confirmed and is being processed by the nearest pharmacy.</p>
+      
+      <div class="progress-wrapper">
+        <div class="progress-line">
+            <div class="progress-line-fill" id="p-bar"></div>
+        </div>
+        <div class="progress-steps">
+          <div class="progress-step active" id="s1">
+            <div class="step-icon"><i class="fa-solid fa-box"></i></div>
+            <div class="step-label" id="t-step1">Confirmed</div>
+          </div>
+          <div class="progress-step" id="s2">
+            <div class="step-icon"><i class="fa-solid fa-pills"></i></div>
+            <div class="step-label">Packing</div>
+          </div>
+          <div class="progress-step" id="s3">
+            <div class="step-icon"><i class="fa-solid fa-motorcycle"></i></div>
+            <div class="step-label">On the Way</div>
+          </div>
+          <div class="progress-step" id="s4">
+            <div class="step-icon"><i class="fa-solid fa-house-chimney-medical"></i></div>
+            <div class="step-label">Delivered</div>
+          </div>
+        </div>
+      </div>
+
+      <a href="customer_dashboard.html" class="btn btn-primary">View My Orders</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const isRx = urlParams.get('rx') === 'true';
+const orderId = urlParams.get('id');
+
+const uid = localStorage.getItem('medcare_uid') || localStorage.getItem('medcare_token');
+
+if (orderId) {
+    document.getElementById('t-sub').innerHTML = `Your order <strong style="color:var(--gray800);">#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been placed securely.`;
+}
+
+// Ensure UI starts completely empty
+document.getElementById('p-bar').style.width = '0%';
+document.getElementById('s1').classList.remove('active');
+
+async function pollStatus() {
+    if (!orderId || !uid) return;
+    try {
+        const res = await fetchWithAuth(`api/user_orders.php?uid=${uid}`);
+        const data = await res.json();
+        const order = data.find(o => o.id === orderId);
+        
+        if (order) updateDynamicUI(order.status, order.delivery_otp);
+    } catch(err) {
+        console.error("Polling error", err);
+    }
+    setTimeout(pollStatus, 3000);
+}
+
+function updateDynamicUI(status, otp) {
+    const title = document.getElementById('t-title');
+    const icon = document.querySelector('.success-icon');
+    
+    // Clear the active states every tick to redraw cleanly
+    ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).classList.remove('active'));
+    
+    if (status === 'Rejected') {
+        title.textContent = 'Order Rejected';
+        title.style.color = '#DC2626';
+        icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        icon.style.background = '#FEE2E2';
+        icon.style.color = '#B91C1C';
+        document.getElementById('p-bar').style.width = '0%';
+        document.getElementById('t-sub').innerHTML = 'The retailer has rejected your order or prescription.';
+        return;
+    }
+    
+    if (status.includes('Pending')) {
+        title.textContent = isRx ? 'Prescription Under Review' : 'Order Received';
+        title.style.color = isRx ? '#92400E' : '#16A34A';
+        icon.innerHTML = isRx ? '<i class="fa-solid fa-file-prescription"></i>' : '<i class="fa-solid fa-clock-rotate-left"></i>';
+        icon.style.background = isRx ? '#FEF3C7' : '#F0FDF4';
+        icon.style.color = isRx ? '#B45309' : '#16A34A';
+        document.getElementById('p-bar').style.width = '0%';
+        document.getElementById('t-step1').innerHTML = isRx ? 'Under<br>Review' : 'Pending';
+        document.getElementById('s1').classList.add('active'); // It is actively pending
+        return;
+    }
+
+    // Normal progression start
+    title.style.color = 'var(--gray900)';
+    icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+    icon.style.background = 'var(--g100)';
+    icon.style.color = 'var(--g600)';
+    document.getElementById('t-step1').textContent = 'Confirmed';
+    document.getElementById('s1').classList.add('active'); // Confirmed
+
+    if (status === 'Pending' || status === 'Processing') {
+        title.textContent = 'Order Placed Successfully!';
+        document.getElementById('p-bar').style.width = '0%';
+    } else if (status === 'Confirmed') {
+        title.textContent = 'Order Confirmed Successfully!';
+        document.getElementById('p-bar').style.width = '0%';
+    } else if (status === 'Packing') {
+        title.textContent = 'Order is being Packed!';
+        document.getElementById('s2').classList.add('active');
+        document.getElementById('p-bar').style.width = '33%';
+    } else if (status === 'Shipped') {
+        title.textContent = 'Order is On the Way!';
+        document.getElementById('s2').classList.add('active');
+        document.getElementById('s3').classList.add('active');
+        document.getElementById('p-bar').style.width = '66%';
+        
+        if (orderId && otp) {
+            let otpHtml = `
+            <div style="margin-top:20px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:2px solid #3B82F6; border-radius:16px; padding:20px;">
+                <div style="font-size:12px; font-weight:700; color:#1E40AF; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;">
+                    <i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i>Your Secure Delivery OTP
+                </div>
+                <div style="font-family:monospace; font-size:38px; font-weight:800; letter-spacing:10px; color:#1D4ED8; margin-bottom:10px;">${otp}</div>
+                <div style="font-size:12px; color:#3B82F6;"><i class="fa-solid fa-clock" style="margin-right:4px;"></i>Share only with the delivery partner at your door.</div>
+            </div>`;
+            document.getElementById('t-sub').innerHTML = `Your order <strong style="color:var(--gray800);">#ORD-${orderId.slice(-6).toUpperCase()}</strong> is out for delivery!${otpHtml}`;
+        }
+    } else if (status === 'Delivered') {
+        title.textContent = 'Order Delivered Successfully!';
+        document.getElementById('s2').classList.add('active');
+        document.getElementById('s3').classList.add('active');
+        document.getElementById('s4').classList.add('active');
+        document.getElementById('p-bar').style.width = '100%';
+        document.getElementById('t-sub').innerHTML = `Your order <strong style="color:var(--gray800);">#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been delivered. Thank you!`;
+    }
+}
+
+// Trigger initial check
+pollStatus();
+</script>
+</body>
+</html>

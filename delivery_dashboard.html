@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediCare — Delivery Partner</title>
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        body { background-color: var(--gray50); }
+        .nav-logo-text { color: var(--gray900); }
+        .nav-logo-text span { color: var(--g600); }
+        
+        .container-sm { max-width: 600px; margin: 40px auto 80px; padding: 0 20px; }
+        .delivery-card { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        
+        .c-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed var(--gray200); }
+        .c-id { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: var(--gray900); }
+        .c-badge { font-size: 11px; font-weight: 700; background: #DBEAFE; color: #1E40AF; padding: 4px 10px; border-radius: 100px; text-transform: uppercase; }
+        
+        .c-address { font-size: 14px; color: var(--gray600); margin-bottom: 24px; line-height: 1.5; }
+        .c-address i { color: var(--gray400); margin-right: 6px; }
+        
+        .otp-box { background: var(--gray50); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--gray200); }
+        .otp-label { display: block; font-size: 13px; font-weight: 600; color: var(--gray700); margin-bottom: 8px; }
+        .otp-input-group { display: flex; gap: 12px; }
+        .otp-input { flex: 1; padding: 12px; font-family: monospace; font-size: 18px; letter-spacing: 4px; text-align: center; border: 1.5px solid var(--gray300); border-radius: var(--radius-sm); outline: none; }
+        .otp-input:focus { border-color: var(--g600); }
+        
+        .btn-verify { white-space: nowrap; padding: 0 24px; }
+        .error-msg { display: none; color: #DC2626; font-size: 13px; margin-top: 8px; font-weight: 500; }
+        .success-msg { display: none; color: #16A34A; font-size: 13px; margin-top: 8px; font-weight: 500; }
+    </style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" style="position:static; background:white; border-bottom:1px solid var(--gray200);">
+  <div class="container" style="padding: 16px 20px;">
+    <div class="nav-inner" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="nav-logo">
+        <div class="nav-logo-icon" style="color:var(--g600);"><i class="fa-solid fa-motorcycle"></i></div>
+        <span class="nav-logo-text">Medi<span style="color:var(--gray900);">Delivery</span></span>
+      </div>
+      <div>
+        <span style="font-size:13px; font-weight:600; color:var(--gray500);"><i class="fa-solid fa-circle" style="color:#10B981; font-size:10px; margin-right:4px;"></i> Online</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container-sm">
+    <h2 style="font-family: var(--font-display); margin-bottom: 24px; font-size:24px;">Active Deliveries</h2>
+    
+    <div id="deliveries-list">
+        <div style="text-align:center; padding:40px; color:var(--gray500);"><i class="fa-solid fa-spinner fa-spin"></i> Finding active deliveries...</div>
+    </div>
+</div>
+
+<script>
+// For pure demo aesthetics, pretend we are authenticated as 'delivery'
+const role = 'delivery';
+
+async function fetchDeliveries() {
+    try {
+        const res = await fetchWithAuth(`api/user_orders.php?role=${role}`);
+        const data = await res.json();
+        
+        const list = document.getElementById('deliveries-list');
+        
+        if (data.length === 0) {
+            list.innerHTML = `
+                <div style="text-align:center; padding:60px 20px; background:white; border-radius:12px; border:1.5px dashed var(--gray300);">
+                    <i class="fa-solid fa-box-open" style="font-size:48px; color:var(--gray300); margin-bottom:16px;"></i>
+                    <h3 style="color:var(--gray700); margin-bottom:8px;">No Pending Deliveries</h3>
+                    <p style="color:var(--gray500); font-size:14px;">You caught up! Wait for the pharmacy to dispatch more orders.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        data.forEach(o => {
+            html += `
+            <div class="delivery-card" id="card-${o.id}">
+                <div class="c-header">
+                    <div>
+                        <div class="c-id">#ORD-${o.id.slice(-6).toUpperCase()}</div>
+                    </div>
+                    <span class="c-badge"><i class="fa-solid fa-bolt"></i> Action Required</span>
+                </div>
+                
+                <div class="c-address">
+                    <i class="fa-solid fa-location-dot"></i> <strong>Deliver to:</strong><br>
+                    ${o.address}
+                </div>
+                
+                <div class="otp-box">
+                    <label class="otp-label">Customer OTP PIN</label>
+                    <div class="otp-input-group">
+                        <input type="text" id="otp-${o.id}" class="otp-input" placeholder="------" maxlength="6" autocomplete="off">
+                        <button class="btn btn-primary btn-verify" onclick="verifyOTP('${o.id}')" id="btn-${o.id}">
+                            Verify <i class="fa-solid fa-shield-check" style="margin-left:6px;"></i>
+                        </button>
+                    </div>
+                    <div id="err-${o.id}" class="error-msg"></div>
+                    <div id="succ-${o.id}" class="success-msg"></div>
+                </div>
+            </div>
+            `;
+        });
+        list.innerHTML = html;
+        
+    } catch (e) {
+        document.getElementById('deliveries-list').innerHTML = '<p style="color:red; text-align:center;">Failed to load data. Ensure API is running.</p>';
+    }
+}
+
+async function verifyOTP(orderId) {
+    const otpInput = document.getElementById(`otp-${orderId}`).value.trim();
+    const btn = document.getElementById(`btn-${orderId}`);
+    const errMsg = document.getElementById(`err-${orderId}`);
+    const succMsg = document.getElementById(`succ-${orderId}`);
+    
+    errMsg.style.display = 'none';
+    
+    if (otpInput.length !== 6) {
+        errMsg.style.display = 'block';
+        errMsg.textContent = "Please enter a valid 6-digit OTP.";
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    
+    try {
+        const res = await fetchWithAuth('api/verify_delivery_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'delivery', order_id: orderId, otp: otpInput })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error);
+        }
+        
+        // Success visually
+        succMsg.style.display = 'block';
+        succMsg.innerHTML = '<i class="fa-solid fa-check-circle"></i> Delivery Verified Successfully!';
+        document.getElementById(`otp-${orderId}`).disabled = true;
+        
+        // Remove from list after 2 seconds
+        setTimeout(() => {
+            document.getElementById(`card-${orderId}`).style.opacity = '0.5';
+            fetchDeliveries();
+        }, 2000);
+        
+    } catch(e) {
+        errMsg.style.display = 'block';
+        errMsg.textContent = e.message;
+        btn.disabled = false;
+        btn.innerHTML = 'Verify';
+    }
+}
+
+// Initial grab
+fetchDeliveries();
+</script>
+</body>
+</html>

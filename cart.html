@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Shopping Cart</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+.cart-layout { display: grid; grid-template-columns: 1fr 340px; gap: 40px; margin: 40px 0 80px; }
+.cart-items { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 24px; }
+.cart-item { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--gray100); }
+.cart-item:last-child { border-bottom: none; }
+.cart-item-info { display: flex; flex-direction: column; gap: 4px; }
+.cart-item-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--gray900); }
+.cart-item-price { font-size: 14px; font-weight: 600; color: var(--g600); }
+.cart-qty-ctrl { display: flex; align-items: center; gap: 12px; background: var(--gray50); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--gray200); }
+.cart-qty-ctrl button { background: none; border: none; cursor: pointer; color: var(--gray600); transition: color 0.2s; }
+.cart-qty-ctrl button:hover { color: var(--g600); }
+.cart-summary { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 24px; height: fit-content; position: sticky; top: 100px; }
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; color: var(--gray600); }
+.summary-total { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--gray300); font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--gray900); }
+.address-input { width: 100%; padding: 12px; font-family: var(--font-body); border: 1.5px solid var(--gray200); border-radius: var(--radius-sm); margin: 20px 0; outline: none; transition: border-color 0.2s; }
+.address-input:focus { border-color: var(--g600); }
+.empty-state { text-align: center; padding: 40px; color: var(--gray500); }
+@media(max-width: 768px) { .cart-layout { grid-template-columns: 1fr; } .cart-summary { position: static; } }
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" class="scrolled">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="shop.html" class="btn btn-outline" style="padding:10px 20px;font-size:14px;">Continue Shopping</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <h1 class="section-title" style="text-align: left; font-size: 28px; margin-top:40px;">Your Shopping Cart</h1>
+  <div class="cart-layout">
+    
+    <!-- ITEMS LIST -->
+    <div class="cart-items" id="cart-list">
+      <!-- Injected dynamically -->
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="cart-summary">
+      <h3 style="font-family: var(--font-display); font-size: 18px; margin-bottom: 20px;">Order Summary</h3>
+      <div class="summary-row"><span>Subtotal (<span id="summary-qty">0</span> items)</span> <span id="summary-subtotal">₹0.00</span></div>
+      <div class="summary-row"><span>Delivery Fee</span> <span>₹40.00</span></div>
+      <div class="summary-total"><span>Total</span> <span id="summary-total">₹40.00</span></div>
+
+      <textarea id="address" class="address-input" rows="3" placeholder="Enter delivery address..." required></textarea>
+      
+      <!-- Prescription Upload Section -->
+      <div id="prescription-section" style="background:var(--green50, #f0fdf4); border:1px solid var(--green200, #bbf7d0); padding:16px; border-radius:8px; margin-bottom:20px; font-size:13px; color:var(--green800, #166534); display: none;">
+          <div style="display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:8px;">
+              <i class="fa-solid fa-check-circle"></i> Prescription Attached
+          </div>
+          Your prescription has been securely attached to this order.<br><br>
+          <span id="prescription-filename" style="font-weight: 500;"></span><br><br>
+          <button onclick="document.getElementById('prescription-file').click()" style="border:1px solid var(--green300, #86efac); background:white; color:var(--green700, #15803d); padding:6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight: 500;">Remove / Change File</button>
+      </div>
+
+      <div id="prescription-upload-prompt" style="background:var(--gray50); border:1px dashed var(--gray300); padding:16px; border-radius:8px; margin-bottom:20px; text-align: center;">
+          <i class="fa-solid fa-file-medical" style="font-size:24px; color:var(--g600); margin-bottom: 8px;"></i>
+          <div style="font-size: 13px; color: var(--gray600); margin-bottom: 12px;">Require a prescription for these medicines?</div>
+          <button onclick="document.getElementById('prescription-file').click()" class="btn btn-outline" style="padding: 6px 16px; font-size: 13px; width: 100%; justify-content: center;">
+              Upload Prescription
+          </button>
+      </div>
+      <input type="file" id="prescription-file" style="display: none;" accept="image/*,.pdf" onchange="handlePrescriptionUpload(event)">
+
+      <!-- Payment Method Section -->
+      <div style="margin: 24px 0 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--gray700); margin-bottom: 12px;">Payment Method</div>
+          <div style="display: flex; gap: 12px;">
+              <label style="flex: 1; border: 1.5px solid var(--blue); background: var(--blue-tint, #EFF6FF); padding: 12px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                  <input type="radio" name="paymentMethod" value="cod" checked style="accent-color: var(--blue);"> Cash on Delivery
+              </label>
+              <label style="flex: 1; border: 1.5px solid var(--gray100); color: var(--gray400); background: white; padding: 12px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 10px; cursor: not-allowed; font-size: 13px;">
+                  <input type="radio" name="paymentMethod" value="upi" disabled> 
+                  <div>UPI / Card<br><span style="font-size:10px; font-weight:500;">(Coming Soon)</span></div>
+              </label>
+          </div>
+      </div>
+
+      <button id="btn-checkout" class="btn btn-primary" style="width:100%; justify-content:center; padding: 16px; font-size: 15px; font-weight: 600;" onclick="handleCheckout()">
+        Confirm & Place Order
+      </button>
+      <div id="checkout-msg" style="margin-top:12px; font-size:13px; text-align:center; display:none;"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let cart = JSON.parse(localStorage.getItem('medcare_cart')) || {};
+
+function renderCart() {
+    const list = document.getElementById('cart-list');
+    let subtotal = 0;
+    let qtyCount = 0;
+    let html = '';
+
+    const items = Object.values(cart);
+    
+    if (items.length === 0) {
+        list.innerHTML = `<div class="empty-state">
+            <i class="fa-solid fa-cart-shopping" style="font-size: 40px; color: var(--gray200); margin-bottom: 16px;"></i><br>
+            Your cart is empty. <br><br>
+            <a href="shop.html" class="btn btn-primary">Start Shopping</a>
+        </div>`;
+        document.getElementById('btn-checkout').disabled = true;
+    } else {
+        items.forEach(item => {
+            const sumPrice = item.price * item.quantity;
+            subtotal += sumPrice;
+            qtyCount += item.quantity;
+            
+            html += `
+            <div class="cart-item" style="padding-bottom: 24px; margin-bottom: 8px; align-items:flex-start;">
+                <div class="cart-item-info" style="flex: 1;">
+                    <div class="cart-item-title" style="font-size:18px; margin-bottom: 8px;">${item.name}</div>
+                    
+                    <div style="font-size: 11px; display:flex; gap: 8px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
+                        <span style="background:var(--gray50); border: 1px solid var(--gray200); padding: 4px 8px; border-radius:4px; color:var(--gray600);">Sold by: ${item.shop_name || 'Admin Pharmacy'}</span>
+                        <span style="background:var(--gray50); border: 1px solid var(--gray200); padding: 4px 8px; border-radius:4px; color:var(--gray600);">Ahmedabad</span>
+                    </div>
+                    
+                    <div style="font-size: 11px; font-weight: 600; color: var(--g600); background: var(--g50); display:inline-block; padding: 4px 8px; border-radius:4px;">In Stock: 50</div>
+                </div>
+                
+                <div style="display:flex; gap:20px; align-items:center;">
+                    <div class="cart-qty-ctrl" style="height:fit-content; background:white; border-color:var(--gray200);">
+                        <button onclick="updateQty('${item.id}', -1)"><i class="fa-solid fa-minus" style="font-size:10px;"></i></button>
+                        <span style="font-weight:700; width:20px; text-align:center; font-size:14px; color:var(--gray900);">${item.quantity}</span>
+                        <button onclick="updateQty('${item.id}', 1)"><i class="fa-solid fa-plus" style="font-size:10px;"></i></button>
+                    </div>
+                    
+                    <div style="display:flex; flex-direction:column; align-items:center; min-width:60px;">
+                        <div style="font-weight:700; font-size:18px; color:var(--blue); font-family:var(--font-display);">₹${sumPrice.toFixed(0)}</div>
+                        <div style="color:var(--gray400); font-size:11px; margin-top:2px;">₹${item.price.toFixed(0)}/unit</div>
+                    </div>
+                    
+                    <div style="color:var(--gray400); cursor:pointer; padding:8px; font-size:14px; transition:color 0.2s;" onmouseover="this.style.color='#EF4444'" onmouseout="this.style.color='var(--gray400)'" onclick="updateQty('${item.id}', -${item.quantity})">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </div>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+        document.getElementById('btn-checkout').disabled = false;
+    }
+
+    const total = subtotal > 0 ? (subtotal + 40) : 0;
+    document.getElementById('summary-qty').textContent = qtyCount;
+    document.getElementById('summary-subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+    document.getElementById('summary-total').textContent = `₹${total.toFixed(2)}`;
+    
+    return total;
+}
+
+window.updateQty = function(id, change) {
+    if (cart[id]) {
+        cart[id].quantity += change;
+        if (cart[id].quantity <= 0) {
+            delete cart[id];
+        }
+        localStorage.setItem('medcare_cart', JSON.stringify(cart));
+        renderCart();
+    }
+}
+
+let prescriptionFile = null;
+
+window.handlePrescriptionUpload = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        prescriptionFile = file;
+        document.getElementById('prescription-upload-prompt').style.display = 'none';
+        document.getElementById('prescription-section').style.display = 'block';
+        document.getElementById('prescription-filename').textContent = 'File: ' + file.name;
+    }
+}
+
+async function handleCheckout() {
+    const address = document.getElementById('address').value;
+    const msg     = document.getElementById('checkout-msg');
+
+    // ── 1. Guard: must be logged in ───────────────────────────────────
+    const idToken = await window.getValidToken();
+    if (!idToken) return;
+
+    // ── 2. Validate address ───────────────────────────────────────────
+    if (!address.trim()) {
+        msg.style.display  = 'block';
+        msg.style.color    = '#EF4444';
+        msg.textContent    = 'Please enter a delivery address.';
+        return;
+    }
+
+    const items = Object.values(cart);
+    if (items.length === 0) {
+        msg.style.display = 'block';
+        msg.style.color   = '#EF4444';
+        msg.textContent   = 'Your cart is empty.';
+        return;
+    }
+
+    const total = renderCart();
+
+    const btn = document.getElementById('btn-checkout');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    btn.disabled  = true;
+    msg.style.display = 'none';
+
+    try {
+        // Send token in BOTH header AND body — works even if Apache strips headers
+        const res = await fetch('api/checkout.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': 'Bearer ' + idToken,
+                'X-Auth-Token':  idToken              // Apache-safe custom header
+            },
+            body: JSON.stringify({
+                idToken,   // ← body fallback: PHP always receives this
+                items,
+                total,
+                address
+            })
+        });
+
+        // Safe JSON parsing: get text first so we can see PHP errors/warnings if any
+        const rawText = await res.text();
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (e) {
+            console.error("Backend returned invalid JSON. Raw response:", rawText);
+            throw new Error("Server error: " + rawText.substring(0, 50) + "...");
+        }
+
+        if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('idToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('tokenExpiresAt');
+            localStorage.removeItem('medcare_token');
+            localStorage.removeItem('medcare_uid');
+            window.location.href = 'auth.html';
+            return;
+        }
+
+        if (!res.ok) throw new Error(data.error || 'Checkout failed');
+
+        localStorage.removeItem('medcare_cart');
+        window.location.href = 'customer_dashboard.html';
+
+    } catch (error) {
+        msg.style.display = 'block';
+        msg.style.color   = '#EF4444';
+        msg.textContent   = error.message || 'Something went wrong. Please try again.';
+        btn.innerHTML     = 'Proceed to Checkout <i class="fa-solid fa-lock"></i>';
+        btn.disabled      = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', renderCart);
+</script>
+</body>
+</html>

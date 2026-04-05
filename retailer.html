@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Retailer Portal</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+.dashboard-layout { display: grid; grid-template-columns: 260px 1fr; gap: 40px; margin: 40px 0 80px; }
+.dash-sidebar { display: flex; flex-direction: column; gap: 8px; }
+.dash-tab { padding: 14px 20px; font-weight: 500; border-radius: var(--radius-sm); color: var(--gray600); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+.dash-tab:hover { background: var(--gray50); color: var(--g600); }
+.dash-tab.active { background: var(--g50); color: var(--g700); font-weight: 600; box-shadow: inset 3px 0 0 var(--g600); }
+.dash-main { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 32px; }
+
+/* Orders View */
+.retailer-order { display: flex; align-items: center; justify-content: space-between; padding: 20px; border: 1px solid var(--gray200); border-radius: var(--radius-md); margin-bottom: 16px; background: var(--gray50); }
+.retailer-order-l { flex: 1; }
+.retailer-order-r { display: flex; gap: 10px; }
+.o-items { font-size: 13px; color: var(--gray600); margin-top: 8px; }
+.o-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-full); text-transform: uppercase; margin-bottom: 6px; }
+.b-processing { background: #FEF3C7; color: #92400E; }
+.b-packing { background: #E0E7FF; color: #3730A3; }
+.b-shipped { background: var(--g100); color: var(--g700); }
+
+/* Add Product Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray700); margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 14px; border: 1.5px solid var(--gray200); border-radius: var(--radius-sm); outline: none; font-family: var(--font-body); }
+
+/* Inventory Table */
+.inv-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; }
+.inv-stat { background: var(--gray50); border: 1.5px solid var(--gray100); border-radius: var(--radius-md); padding: 18px 20px; }
+.inv-stat-label { font-size: 11px; font-weight: 700; color: var(--gray400); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.inv-stat-val { font-family: var(--font-display); font-size: 28px; font-weight: 700; color: var(--gray900); }
+.inv-stat-val.warn { color: #F59E0B; }
+.inv-stat-val.ok { color: var(--g600); font-size: 14px; font-weight: 700; }
+.inv-table-wrap { overflow-x: auto; }
+.inv-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.inv-table th { text-align: left; font-size: 11px; font-weight: 700; color: var(--gray400); text-transform: uppercase; letter-spacing: .06em; padding: 10px 14px; border-bottom: 2px solid var(--gray100); }
+.inv-table td { padding: 14px; border-bottom: 1px solid var(--gray100); vertical-align: middle; }
+.inv-table tr:last-child td { border-bottom: none; }
+.inv-table tr:hover td { background: var(--gray50); }
+.inv-name { font-weight: 600; color: var(--gray900); }
+.inv-sub { font-size: 12px; color: var(--gray400); margin-top: 2px; }
+.stock-low { color: #EF4444; font-weight: 700; }
+.stock-ok  { color: var(--g600); font-weight: 600; }
+.inv-action-btn { background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 4px; transition: background .15s; }
+.inv-action-btn.edit   { color: var(--g600); } .inv-action-btn.edit:hover   { background: var(--g50); }
+.inv-action-btn.delete { color: #EF4444; }    .inv-action-btn.delete:hover { background: #FEF2F2; }
+
+/* Edit Modal */
+.edit-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; }
+.edit-overlay.show { display:flex; }
+.edit-modal { background:white; border-radius: var(--radius-xl); padding:32px; width:100%; max-width:460px; box-shadow:0 24px 60px rgba(0,0,0,.2); animation:slideUp .25s ease; }
+@keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.edit-modal h3 { font-family:var(--font-display); font-size:20px; margin-bottom:20px; color:var(--gray900); }
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" class="scrolled" style="background: var(--gray900); color: white;">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo" style="flex-direction:row; align-items:center; gap:10px; text-decoration:none;">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <div style="display:flex; flex-direction:column; line-height:1.1;">
+          <span style="font-size:10px; font-weight:700; color:var(--g400); letter-spacing:1.5px; text-transform:uppercase;">MediCare</span>
+          <span class="nav-logo-text" style="color:white; font-size:17px; margin:0;">Partner<span>Portal</span></span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <span style="font-size:14px; font-weight:600; margin-right: 12px;" id="r-name">Loading...</span>
+        <button class="btn btn-primary" onclick="logout()" style="padding:10px 20px;font-size:14px;">Logout</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <div class="dashboard-layout">
+    <div class="dash-sidebar">
+      <div class="dash-tab active" id="tab-orders" onclick="switchTab('orders')"><i class="fa-solid fa-boxes-packing"></i> Incoming Orders</div>
+      <div class="dash-tab" id="tab-inventory" onclick="switchTab('inventory')"><i class="fa-solid fa-warehouse"></i> Inventory</div>
+      <div class="dash-tab" id="tab-bookings" onclick="switchTab('bookings')"><i class="fa-solid fa-flask"></i> Lab Bookings</div>
+      <div class="dash-tab" id="tab-products" onclick="switchTab('products')"><i class="fa-solid fa-plus"></i> Add Product</div>
+      <div class="dash-tab" id="tab-add-lab-test" onclick="switchTab('add-lab-test')"><i class="fa-solid fa-vial-virus"></i> Add Lab Test</div>
+    </div>
+
+    <div class="dash-main">
+
+      <!-- ORDERS VIEW -->
+      <div id="view-orders">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Manage Orders</h3>
+        <div id="orders-list">Loading...</div>
+      </div>
+
+      <!-- INVENTORY VIEW -->
+      <div id="view-inventory" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+          <h3 style="font-family:var(--font-display); margin:0;">Inventory Management</h3>
+          <button class="btn btn-primary" style="padding:10px 18px; font-size:13px;" onclick="switchTab('products')">
+            <i class="fa-solid fa-plus"></i> Add Medicine
+          </button>
+        </div>
+        <div class="inv-stats">
+          <div class="inv-stat">
+            <div class="inv-stat-label">Total Items</div>
+            <div class="inv-stat-val" id="inv-total">—</div>
+          </div>
+          <div class="inv-stat">
+            <div class="inv-stat-label">Low Stock Alert</div>
+            <div class="inv-stat-val warn" id="inv-low">—</div>
+          </div>
+          <div class="inv-stat">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div class="inv-stat-label">Shop Status</div>
+                    <div class="inv-stat-val ok" id="inv-status">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size:12px; color:var(--gray400);"></i>
+                    </div>
+                </div>
+                <button class="shop-toggle-btn" onclick="toggleShopStatus()" style="display:none; background:white; border:1px solid var(--gray200); padding:6px 10px; border-radius:6px; font-size:11px; font-weight:700; color:var(--gray700); cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <i class="fa-solid fa-power-off"></i> Toggle
+                </button>
+            </div>
+          </div>
+        </div>
+        <div class="inv-table-wrap">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th style="text-align:right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="inv-tbody">
+              <tr><td colspan="4" style="text-align:center; color:var(--gray400); padding:40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LAB BOOKINGS VIEW -->
+      <div id="view-bookings" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 24px;">
+            <h3 style="font-family:var(--font-display); font-size:24px; color:var(--gray900); margin:0;">Test Requests</h3>
+            <div style="background:white; border:1px solid var(--gray200); padding:8px 16px; border-radius:100px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:flex; align-items:center; gap:8px;">
+                <span style="font-size:13px; color:var(--gray600); font-weight:600;">Home Collection:</span>
+                <button id="hc-toggle-btn" style="background:#E2E8F0; width:36px; height:20px; border-radius:10px; border:none; position:relative; cursor:pointer;" onclick="toggleHomeCollection()">
+                    <div id="hc-knob" style="background:white; width:16px; height:16px; border-radius:50%; position:absolute; top:2px; left:2px; box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:all 0.2s;"></div>
+                </button>
+                <span id="hc-status-txt" style="font-size:12px; color:var(--gray500); font-weight:600; min-width:48px;">Inactive</span>
+            </div>
+        </div>
+
+        <div class="inv-stats" style="margin-bottom:24px; gap:16px; display:grid; grid-template-columns: 1fr 1fr 1fr;">
+          <div class="inv-stat" style="border-left:4px solid #A855F7;">
+            <div class="inv-stat-label" style="margin-bottom:8px;">Total Requests</div>
+            <div class="inv-stat-val" id="book-total">0</div>
+          </div>
+          <div class="inv-stat" style="border-left:4px solid #F97316;">
+            <div class="inv-stat-label" style="margin-bottom:8px;">Pending Collection</div>
+            <div class="inv-stat-val" id="book-pending">0</div>
+          </div>
+          <div class="inv-stat" style="border-left:4px solid #10B981;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div class="inv-stat-label" style="margin-bottom:8px;">Shop Status</div>
+                    <div class="inv-stat-val ok" id="lab-inv-status">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size:12px; color:var(--gray400);"></i>
+                    </div>
+                </div>
+                <button class="shop-toggle-btn" onclick="toggleShopStatus()" style="display:none; background:white; border:1px solid var(--gray200); padding:6px 10px; border-radius:6px; font-size:11px; font-weight:700; color:var(--gray700); cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <i class="fa-solid fa-power-off"></i> Toggle
+                </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-table-wrap">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th style="color:var(--gray500); font-weight:600; font-size:11px;">PATIENT INFO</th>
+                <th style="color:var(--gray500); font-weight:600; font-size:11px;">TEST DETAILS</th>
+                <th style="color:var(--gray500); font-weight:600; font-size:11px;">MODE</th>
+                <th style="color:var(--gray500); font-weight:600; font-size:11px;">STATUS</th>
+                <th style="text-align:right; color:var(--gray500); font-weight:600; font-size:11px;">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-tbody">
+              <tr><td colspan="5" style="text-align:center; color:var(--gray400); padding:40px;">No test requests yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ADD PRODUCT VIEW -->
+      <div id="view-products" style="display:none;">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Add New Medicine to Stock</h3>
+        <form id="product-form" onsubmit="handleAddProduct(event)">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="p-name" required placeholder="e.g. Paracetamol 500mg">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="p-cat">
+                        <option>Pain Relief</option>
+                        <option>Cold & Flu</option>
+                        <option>Vitamins</option>
+                        <option>Heart & BP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Prescription Status</label>
+                    <select id="p-rx">
+                        <option value="false">OTC (Over-The-Counter)</option>
+                        <option value="true">Prescription Required</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Price (&#8377;)</label>
+                    <input type="number" id="p-price" required placeholder="45.00">
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="p-stock" required value="100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description (50-100 characters)</label>
+                <textarea id="p-desc" rows="3" required minlength="50" maxlength="100" placeholder="Enter a brief product description (50-100 chars)..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Product <i class="fa-solid fa-plus"></i></button>
+            <span id="p-msg" style="margin-left: 12px; font-weight:600; font-size:14px;"></span>
+        </form>
+      </div>
+
+      <!-- ADD LAB TEST VIEW -->
+      <div id="view-add-lab-test" style="display:none;">
+        <h3 style="font-family:var(--font-display); margin-bottom: 24px;">Add New Lab Test</h3>
+        <form id="lab-test-form" onsubmit="handleAddLabTest(event)">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Test Name</label>
+                    <input type="text" id="lt-name" required placeholder="e.g. Total Thyroid Profile">
+                </div>
+                <div class="form-group">
+                    <label>Price (&#8377;)</label>
+                    <input type="number" id="lt-price" required placeholder="499.00">
+                </div>
+                <div class="form-group">
+                    <label>Turnaround Time</label>
+                    <input type="text" id="lt-turnaround" required placeholder="e.g. 24 hours">
+                </div>
+                <div class="form-group">
+                    <label>Available Timing / Slot</label>
+                    <select id="lt-timing" required>
+                        <option value="" disabled selected>Select Time Slot</option>
+                        <option value="9:00 AM - 10:00 AM">9:00 AM - 10:00 AM</option>
+                        <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                        <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                        <option value="1:00 PM - 2:00 PM">1:00 PM - 2:00 PM</option>
+                        <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
+                        <option value="3:00 PM - 4:00 PM">3:00 PM - 4:00 PM</option>
+                        <option value="4:00 PM - 5:00 PM">4:00 PM - 5:00 PM</option>
+                        <option value="5:00 PM - 6:00 PM">5:00 PM - 6:00 PM</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Preparation / Requirements</label>
+                <input type="text" id="lt-req" required placeholder="e.g. Fasting of 10-12 hours is required.">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="lt-desc" rows="3" required placeholder="Detailed test description..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Lab Test <i class="fa-solid fa-plus"></i></button>
+            <span id="lt-msg" style="margin-left: 12px; font-weight:600; font-size:14px;"></span>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PRODUCT MODAL -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-modal">
+    <h3><i class="fa-solid fa-pen-to-square" style="color:var(--g600);margin-right:8px;"></i>Edit Product</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label>Product Name</label>
+      <input type="text" id="edit-name" placeholder="Product name">
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Price (&#8377;)</label>
+        <input type="number" id="edit-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Stock Quantity</label>
+        <input type="number" id="edit-stock" placeholder="0" min="0">
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
+      <button class="btn" style="background:var(--gray100); color:var(--gray700); border:none; padding:12px 20px;" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" style="padding:12px 24px;" onclick="saveProductEdit()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+    </div>
+    <div id="edit-msg" style="margin-top:12px; font-size:13px; font-weight:600; text-align:center;"></div>
+  </div>
+</div>
+
+<!-- INLINE MODAL FOR PRESCRIPTION -->
+<div id="rx-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+    <div style="position:relative; background:white; padding:20px; border-radius:8px; max-width:90%; max-height:90%; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0; font-family:var(--font-display);">Prescription Image</h3>
+            <button onclick="document.getElementById('rx-modal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div style="overflow:auto; display:flex; justify-content:center;">
+            <img id="rx-modal-img" src="" style="max-width:100%; max-height:calc(90vh - 80px); object-fit:contain;">
+        </div>
+    </div>
+</div>
+
+<script>
+(async function() {
+    // Check all possible token keys (new interceptor standard vs legacy)
+    const idToken = localStorage.getItem('idToken') || localStorage.getItem('medcare_idToken');
+    if (!idToken) { 
+        window.location.href = 'auth.html?role=retailer'; 
+        return; 
+    }
+    try {
+        const res = await fetch('api/verify_token.php', { headers: { 'Authorization': 'Bearer ' + idToken } });
+        const data = await res.json();
+        if (!data.valid || (data.role !== 'retailer' && data.role !== 'laboratory')) {
+            localStorage.clear();
+            window.location.href = 'auth.html?role=' + (data.role === 'customer' ? 'customer' : 'retailer');
+        }
+    } catch(e) { 
+        window.location.href = 'auth.html?role=retailer'; 
+    }
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const role = localStorage.getItem('medcare_role');
+    document.getElementById('r-name').textContent = 'Hi, ' + localStorage.getItem('medcare_name');
+    const shopName = localStorage.getItem('medcare_shop_name');
+    
+    if (role === 'retailer') {
+        if (shopName) {
+            document.getElementById('r-name').innerHTML = `<i class="fa-solid fa-store" style="color:var(--g400); margin-right:6px;"></i><span style="color:var(--g300);">${shopName}</span>`;
+        }
+        document.getElementById('tab-bookings').style.display = 'none';
+        document.getElementById('tab-add-lab-test').style.display = 'none';
+        switchTab('orders');
+        fetchOrders();
+        fetchShopStatus();
+    } else if (role === 'laboratory') {
+        if (shopName) {
+            document.getElementById('r-name').innerHTML = `<i class="fa-solid fa-flask" style="color:var(--g400); margin-right:6px;"></i><span style="color:var(--g300);">${shopName}</span>`;
+        }
+        // Labs hide orders and standard products
+        document.getElementById('tab-orders').style.display = 'none';
+        document.getElementById('tab-products').style.display = 'none';
+        
+        // Morph the Inventory tab into Lab Tests Catalogue
+        document.getElementById('tab-inventory').innerHTML = '<i class="fa-solid fa-vial"></i> Lab Tests Catalogue';
+        document.querySelector('#view-inventory h3').textContent = 'Lab Tests Catalogue';
+        document.querySelector('#view-inventory .btn.btn-primary').style.display = 'none'; // hide 'Add Medicine'
+        
+        // Hide "Low Stock Alert" since it's irrelevant for tests
+        document.querySelector('.inv-stat:nth-child(2)').style.display = 'none';
+        document.querySelector('.inv-stat-label').textContent = 'Total Tests Active';
+        
+        // Morph Table Columns
+        document.querySelector('.inv-table thead tr').innerHTML = '<th>Test Name</th><th>Price</th><th>Turnaround</th><th style="text-align:right;">Action</th>';
+        
+        switchTab('bookings');
+        fetchLabBookings();
+        fetchShopStatus();
+        fetchLabInventory();
+        updateHomeCollectionUI();
+    }
+    
+    startPolling();
+});
+
+let currentRetailerOrders = [];
+let lastOrdersString = '';
+let lastBookingsString = '';
+let pollInterval;
+
+function startPolling() {
+    if (!pollInterval) {
+        pollInterval = setInterval(() => {
+            if (document.getElementById('view-orders').style.display !== 'none') fetchOrders(true);
+            if (document.getElementById('view-bookings').style.display !== 'none') fetchLabBookings(true);
+        }, 3000);
+    }
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = 'index.html';
+}
+
+function switchTab(view) {
+    ['orders','inventory','products','bookings','add-lab-test'].forEach(t => {
+        document.getElementById('tab-' + t)?.classList.remove('active');
+        document.getElementById('view-' + t).style.display = 'none';
+    });
+    document.getElementById('tab-' + view)?.classList.add('active');
+    document.getElementById('view-' + view).style.display = 'block';
+    if (view === 'inventory') {
+        const role = localStorage.getItem('medcare_role');
+        if (role === 'laboratory') fetchLabInventory();
+        else fetchInventory();
+    }
+}
+
+async function fetchOrders(isPoll = false) {
+    try {
+        const uid = localStorage.getItem('medcare_uid');
+        const res = await fetchWithAuth(`api/user_orders.php?role=retailer&uid=${encodeURIComponent(uid)}`);
+        const data = await res.json();
+        
+        const dataStr = JSON.stringify(data);
+        if (isPoll && dataStr === lastOrdersString) return; // Prevent DOM flicker if data hasn't changed
+        lastOrdersString = dataStr;
+        
+        const list = document.getElementById('orders-list');
+        if (data.length === 0) { list.innerHTML = 'No incoming orders.'; return; }
+        
+        currentRetailerOrders = data;
+        let html = '';
+        data.forEach(o => {
+            const date = new Date(o.timestamp * 1000).toLocaleString();
+            let bClass = 'b-processing';
+            if (o.status === 'Packing' || o.status === 'Confirmed') bClass = 'b-packing';
+            if (o.status === 'Shipped') bClass = 'b-shipped';
+            if (o.status === 'Rejected') bClass = 'b-processing';
+            
+            let btnAction = '';
+            if (o.status === 'Processing' || o.status === 'Pending' || o.status === 'Pending (RX)') {
+                btnAction = `
+                    <button class="btn btn-primary" style="background:#16A34A; border-color:#16A34A;" onclick="updateStatus('${o.id}', 'Confirmed')">Approve</button>
+                    <button class="btn btn-primary" style="background:#EF4444; border-color:#EF4444;" onclick="updateStatus('${o.id}', 'Rejected')">Reject</button>
+                `;
+            } else if (o.status === 'Confirmed' || o.status === 'Packing') {
+                btnAction = `<button id="btn-dispatch-${o.id}" class="btn btn-primary" onclick="dispatchOrder('${o.id}')">Dispatch & Gen OTP <i class="fa-solid fa-motorcycle" style="margin-left:6px;"></i></button>`;
+            } else if (o.status === 'Shipped') {
+                btnAction = `
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <button id="btn-resend-${o.id}" class="btn" style="background:white; color:#F59E0B; border:1.5px solid #FCD34D; border-radius:var(--radius-sm); font-size:12px; padding:6px 12px; font-weight:600; cursor:pointer;" onclick="resendOTP('${o.id}')">
+                            Resend OTP <i class="fa-solid fa-rotate-right" style="margin-left:4px;"></i>
+                        </button>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="text" id="otp-retailer-${o.id}" maxlength="6" placeholder="Enter OTP" 
+                                style="width:110px; padding:8px 12px; font-family:monospace; font-size:16px; letter-spacing:3px; text-align:center; border:1.5px solid #3B82F6; border-radius:var(--radius-sm); outline:none;">
+                            <button id="btn-verify-${o.id}" class="btn btn-primary" style="padding:8px 14px; font-size:13px; background:#1D4ED8; border-color:#1D4ED8;" onclick="verifyOTPRetailer('${o.id}')">
+                                Verify & Deliver <i class="fa-solid fa-shield-check" style="margin-left:4px;"></i>
+                            </button>
+                        </div>
+                        <div id="otp-retailer-msg-${o.id}" style="font-size:12px; font-weight:600;"></div>
+                    </div>
+                `;
+            }
+            
+            const cName = o.customer_name || 'Customer';
+            const cPhone = o.customer_phone || 'Not provided';
+            
+            let rxHtml = '';
+            if (o.has_rx) {
+                rxHtml = `<div style="margin-top:12px;"><a href="javascript:void(0)" onclick="viewPrescription('${o.id}')" style="font-size:12px; color:#14B8A6; font-weight:600; text-decoration:none; padding:6px 12px; border:1px solid #CCFBF1; border-radius:4px; background:#F0FDFA; display:inline-block;"><i class="fa-solid fa-file-prescription"></i> View Prescription</a></div>`;
+            }
+            
+            html += `
+            <div class="retailer-order">
+                <div class="retailer-order-l">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div style="font-weight:700; font-size:15px; color:var(--gray900); font-family:var(--font-display);">#ORD-${o.id.slice(-6).toUpperCase()}</div>
+                        <span class="o-badge ${bClass}">${o.status}</span>
+                    </div>
+                    <div style="font-size:12px; color:var(--gray500); margin-bottom:12px;"><i class="fa-regular fa-clock"></i> ${date}</div>
+                    
+                    <div style="background: white; border: 1px solid var(--gray200); padding: 16px; border-radius: 8px; margin-bottom: 12px;">
+                        <div style="font-size:10px; font-weight:700; color:#3B82F6; letter-spacing:1px; margin-bottom:12px; text-transform:uppercase;">Delivery Details</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <div style="font-size:10px; color:var(--gray500); text-transform:uppercase; margin-bottom:2px;">Name</div>
+                                <div style="font-size:13px; font-weight:700; color:var(--gray900); text-transform:capitalize;">${cName}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:10px; color:var(--gray500); text-transform:uppercase; margin-bottom:4px;">Phone Number</div>
+                                ${cPhone !== 'Not provided' 
+                                    ? `<a href="tel:${cPhone}" style="display:inline-flex; align-items:center; gap:6px; background:#F0FDFA; color:#0F766E; border:1px solid #CCFBF1; padding:6px 10px; border-radius:6px; font-size:13px; font-weight:700; text-decoration:none; transition:all 0.2s;"><i class="fa-solid fa-phone" style="font-size:11px;"></i> +91 ${cPhone.replace(/^\+91\s*/, '')}</a>`
+                                    : `<span style="font-size:13px; color:var(--gray400); font-style:italic;">Not provided</span>`
+                                }
+                            </div>
+                            <div style="grid-column: span 2; margin-top:4px;">
+                                <div style="font-size:10px; color:var(--gray500); text-transform:uppercase; margin-bottom:2px;">Full Address</div>
+                                <div style="font-size:13px; color:var(--gray700); line-height:1.5;">${o.address}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: white; border: 1px solid var(--gray200); padding: 12px 16px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:13px; color:var(--gray800);"><strong style="font-size:10px; color:var(--gray500); text-transform:uppercase; display:block; margin-bottom:4px;">Items</strong>${o.items.map(i => `${i.name} <span style="color:var(--gray400);">x${i.quantity}</span>`).join('<br>')}</div>
+                        <div style="font-weight:700; font-family:var(--font-display); font-size:16px;">&#8377;${o.total_amount.toFixed(2)}</div>
+                    </div>
+                    ${rxHtml}
+                </div>
+                <div class="retailer-order-r" style="flex-direction:column; gap:8px; align-items:flex-end;">
+                    ${btnAction}
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+        
+    } catch(err) {
+        document.getElementById('orders-list').innerHTML = '<p style="color:red;">Error loading orders.</p>';
+    }
+}
+
+async function updateStatus(id, newStatus) {
+    await fetchWithAuth('api/update_status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: id, status: newStatus })
+    });
+    fetchOrders(); // refresh
+}
+
+async function dispatchOrder(id) {
+    const btn = document.getElementById('btn-dispatch-' + id);
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; }
+    try {
+        const res = await fetchWithAuth('api/generate_delivery_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'retailer', order_id: id })
+        });
+        const data = await res.json();
+        if(!res.ok && btn) { btn.innerHTML = 'Error!'; setTimeout(()=>fetchOrders(false), 2000); return; }
+    } catch(e) { }
+    fetchOrders(false); 
+}
+
+async function resendOTP(id) {
+    const btn = document.getElementById('btn-resend-' + id);
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...'; }
+    try {
+        const res = await fetchWithAuth('api/regenerate_delivery_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'retailer', order_id: id })
+        });
+        const data = await res.json();
+        if(res.ok && btn) {
+            btn.innerHTML = 'Sent! <i class="fa-solid fa-check"></i>';
+            btn.style.color = '#16A34A';
+            btn.style.borderColor = '#16A34A';
+            setTimeout(() => fetchOrders(false), 3000);
+        }
+        else if(btn) {
+            btn.innerHTML = 'Wait 30s <i class="fa-solid fa-clock"></i>';
+            btn.style.color = '#DC2626';
+            btn.style.borderColor = '#DC2626';
+            setTimeout(() => fetchOrders(false), 3000);
+        }
+    } catch(e) { }
+}
+
+async function verifyOTPRetailer(id) {
+    const input = document.getElementById('otp-retailer-' + id);
+    const btn = document.getElementById('btn-verify-' + id);
+    const msg = document.getElementById('otp-retailer-msg-' + id);
+    const otp = input ? input.value.trim() : '';
+    
+    if (otp.length !== 6) {
+        msg.style.color = '#DC2626';
+        msg.textContent = 'Enter a valid 6-digit OTP';
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    msg.textContent = '';
+    
+    try {
+        const res = await fetchWithAuth('api/verify_delivery_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'delivery', order_id: id, otp: otp })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            msg.style.color = '#16A34A';
+            msg.textContent = '✓ Delivered!';
+            setTimeout(() => fetchOrders(false), 1500);
+        } else {
+            msg.style.color = '#DC2626';
+            msg.textContent = data.error;
+            btn.disabled = false;
+            btn.innerHTML = 'Verify & Deliver <i class="fa-solid fa-shield-check" style="margin-left:4px;"></i>';
+        }
+    } catch(e) {
+        msg.style.color = '#DC2626';
+        msg.textContent = 'Request failed';
+        btn.disabled = false;
+        btn.innerHTML = 'Verify & Deliver';
+    }
+}
+
+window.viewPrescription = async function(id) {
+    document.getElementById('rx-modal-img').src = '';
+    document.getElementById('rx-modal').style.display = 'flex';
+    document.getElementById('rx-modal-img').alt = 'Loading...';
+    try {
+        const res = await fetchWithAuth(`api/get_prescription.php?order_id=${id}`);
+        const data = await res.json();
+        if (data.rx_image) {
+            document.getElementById('rx-modal-img').src = data.rx_image;
+        } else {
+            document.getElementById('rx-modal-img').alt = 'Prescription not found';
+        }
+    } catch(e) {
+        document.getElementById('rx-modal-img').alt = 'Failed to load prescription';
+    }
+}
+
+async function fetchLabBookings(isPoll = false) {
+    try {
+        const uid = localStorage.getItem('medcare_uid');
+        const shopName = localStorage.getItem('medcare_shop_name') || '';
+        const res = await fetchWithAuth(`api/lab_bookings.php?role=retailer&uid=${encodeURIComponent(uid)}&shop_name=${encodeURIComponent(shopName)}`);
+        const data = await res.json();
+        
+        const dataStr = JSON.stringify(data);
+        if (isPoll && dataStr === lastBookingsString) return; 
+        lastBookingsString = dataStr;
+
+        const tbody = document.getElementById('bookings-tbody');
+        const totalEl = document.getElementById('book-total');
+        const pendingEl = document.getElementById('book-pending');
+
+        if (totalEl) totalEl.textContent = Array.isArray(data) ? data.length : 0;
+        if (pendingEl) pendingEl.textContent = Array.isArray(data) ? data.filter(b => b.status === 'Pending').length : 0;
+
+        if (!Array.isArray(data) || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--gray400); padding:40px;">No test requests yet.</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(b => {
+            const date = new Date(b.timestamp * 1000).toLocaleString();
+            let statusColor = '#F59E0B';
+            if (b.status === 'Confirmed') statusColor = '#3B82F6';
+            if (b.status === 'Sample Collected') statusColor = '#8B5CF6';
+            if (b.status === 'Report Ready') statusColor = '#10B981';
+            
+            let btnAction = '';
+            if (b.status === 'Pending') btnAction = `<button class="btn btn-primary" id="btn-confirm-${b.id}" style="font-size:12px; padding:6px 14px;" onclick="confirmLabAndGenerateOTP('${b.id}')"><i class="fa-solid fa-check"></i> Confirm & Send OTP</button>`;
+            else if (b.status === 'Confirmed') {
+                if (!b.sample_otp) {
+                    // OTP not yet generated — show Generate button
+                    btnAction = `
+                        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                            <div style="font-size:11px; color:#F59E0B; font-weight:600; text-align:right; margin-bottom:2px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>OTP not sent yet</div>
+                            <button class="btn btn-primary" id="btn-gen-otp-${b.id}" style="background:#8B5CF6; border-color:#8B5CF6; font-size:12px; padding:7px 14px;" onclick="generateAndSendOTP('${b.id}')">
+                                <i class="fa-solid fa-paper-plane"></i> Generate & Send OTP
+                            </button>
+                            <div id="lab-otp-msg-${b.id}" style="font-size:12px; font-weight:600; text-align:right;"></div>
+                        </div>`;
+                } else {
+                    // OTP already generated — show verify input + resend option
+                    btnAction = `
+                        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                            <div style="font-size:11px; color:#3B82F6; font-weight:600; text-align:right; margin-bottom:2px;"><i class="fa-solid fa-circle-check" style="margin-right:3px;"></i>OTP sent to customer</div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <input type="text" id="lab-otp-${b.id}" maxlength="6" placeholder="Enter OTP"
+                                    style="width:110px; padding:7px 10px; font-family:monospace; font-size:15px; letter-spacing:3px; text-align:center; border:1.5px solid #8B5CF6; border-radius:var(--radius-sm); outline:none;">
+                                <button class="btn btn-primary" id="btn-lab-verify-${b.id}" style="background:#8B5CF6; border-color:#8B5CF6; font-size:12px; padding:7px 12px;" onclick="verifyLabOTP('${b.id}')">
+                                    <i class="fa-solid fa-shield-check"></i> Verify
+                                </button>
+                            </div>
+                            <button id="btn-resend-lab-${b.id}" onclick="generateAndSendOTP('${b.id}')" style="background:none; border:none; font-size:11px; color:#6D28D9; font-weight:600; cursor:pointer; padding:0; text-decoration:underline;">
+                                <i class="fa-solid fa-rotate-right"></i> Resend OTP
+                            </button>
+                            <div id="lab-otp-msg-${b.id}" style="font-size:12px; font-weight:600; text-align:right;"></div>
+                        </div>`;
+                }
+            }
+            else if (b.status === 'Sample Collected') {
+                btnAction = `
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                        <input type="file" id="report_file_${b.id}" accept=".pdf,image/*" style="font-size:11px;">
+                        <button class="btn btn-primary" id="btn-upload-${b.id}" style="font-size:12px; padding:6px 14px;" onclick="uploadLabReport('${b.id}')"><i class="fa-solid fa-upload"></i> Upload Report</button>
+                        <div id="upload-msg-${b.id}" style="font-size:12px; font-weight:600;"></div>
+                    </div>`;
+            } else if (b.status === 'Report Ready' && b.report_url) {
+                btnAction = `<a href="${b.report_url}" target="_blank" class="btn" style="font-size:12px; padding:6px 12px; color:var(--g700); border:1px solid var(--g300); text-decoration:none;"><i class="fa-solid fa-file-medical"></i> View Report</a>`;
+            }
+
+            const mode = b.collection_mode || 'Home Collection';
+            const modeIcon = mode.toLowerCase().includes('home') ? 'fa-house-chimney-medical' : 'fa-hospital';
+
+            html += `<tr>
+                <td>
+                    <div style="font-weight:600; font-size:13px; color:var(--gray900);">${b.patient_name}</div>
+                    <div style="font-size:12px; color:var(--gray500);">Age: ${b.patient_age} &nbsp;|&nbsp; ${b.contact}</div>
+                    <div style="font-size:11px; color:var(--gray400); margin-top:2px;">${b.address}</div>
+                </td>
+                <td>
+                    <div style="font-weight:600; font-size:13px; color:var(--gray900);">${b.test_name}</div>
+                    <div style="font-size:12px; color:var(--g600); font-weight:600;">&#8377;${parseFloat(b.price).toFixed(2)}</div>
+                    <div style="font-size:11px; color:var(--gray500);">${b.booking_date} | ${b.time_slot}</div>
+                </td>
+                <td>
+                    <span style="font-size:12px; background:var(--g50); color:var(--g700); padding:4px 8px; border-radius:4px; font-weight:600; white-space:nowrap;">
+                        <i class="fa-solid ${modeIcon}" style="margin-right:4px;"></i>${mode}
+                    </span>
+                </td>
+                <td>
+                    <span style="font-size:12px; font-weight:700; color:${statusColor};">${b.status}</span>
+                    <div style="font-size:11px; color:var(--gray400); margin-top:2px;">${date}</div>
+                </td>
+                <td style="text-align:right;">${btnAction}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+        
+    } catch(err) {
+        const tbody = document.getElementById('bookings-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="color:red; padding:20px; text-align:center;">Error loading lab bookings.</td></tr>';
+    }
+}
+
+async function uploadLabReport(id) {
+    const fileInput = document.getElementById('report_file_' + id);
+    const msg = document.getElementById('upload-msg-' + id);
+    const btn = document.getElementById('btn-upload-' + id);
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        msg.style.color = '#DC2626';
+        msg.textContent = 'Please select a file first.';
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+    
+    const formData = new FormData();
+    formData.append('booking_id', id);
+    formData.append('report_file', fileInput.files[0]);
+    
+    try {
+        const res = await fetchWithAuth('api/upload_lab_report.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            msg.style.color = '#16A34A';
+            msg.textContent = 'Uploaded!';
+            setTimeout(() => fetchLabBookings(false), 1500);
+        } else {
+            msg.style.color = '#DC2626';
+            msg.textContent = data.error || 'Upload failed.';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-upload"></i> Upload Report';
+        }
+    } catch(err) {
+        msg.style.color = '#DC2626';
+        msg.textContent = 'Request failed.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-upload"></i> Upload Report';
+    }
+}
+
+async function updateLabStatus(id, newStatus) {
+    await fetchWithAuth('api/lab_bookings.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: id, status: newStatus })
+    });
+    fetchLabBookings();
+}
+
+// === LAB OTP: Confirm booking & generate OTP for customer ===
+async function confirmLabAndGenerateOTP(bookingId) {
+    const btn = document.getElementById('btn-confirm-' + bookingId);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming...'; }
+    try {
+        const res = await fetchWithAuth('api/generate_lab_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: bookingId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            fetchLabBookings(false); // refresh to show OTP input
+        } else {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm & Send OTP'; }
+            alert(data.error || 'Failed to confirm booking.');
+        }
+    } catch(e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm & Send OTP'; }
+        alert('Network error. Please try again.');
+    }
+}
+
+// === LAB OTP: Verify OTP entered by lab (given by phlebotomist from customer) ===
+async function verifyLabOTP(bookingId) {
+    const input = document.getElementById('lab-otp-' + bookingId);
+    const btn   = document.getElementById('btn-lab-verify-' + bookingId);
+    const msg   = document.getElementById('lab-otp-msg-' + bookingId);
+    const otp   = input ? input.value.trim() : '';
+
+    if (otp.length !== 6) {
+        if (msg) { msg.style.color = '#DC2626'; msg.textContent = 'Enter a valid 6-digit OTP'; }
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    if (msg) msg.textContent = '';
+
+    try {
+        const res = await fetchWithAuth('api/verify_lab_otp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: bookingId, otp: otp })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (msg) { msg.style.color = '#16A34A'; msg.textContent = '✓ Sample collected!'; }
+            setTimeout(() => fetchLabBookings(false), 1500);
+        } else {
+            if (msg) { msg.style.color = '#DC2626'; msg.textContent = data.error || 'Invalid OTP'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Verify'; }
+        }
+    } catch(e) {
+        if (msg) { msg.style.color = '#DC2626'; msg.textContent = 'Request failed'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Verify'; }
+    }
+}
+
+// === LAB OTP: Generate/Resend OTP for already-Confirmed bookings ===
+async function generateAndSendOTP(bookingId) {
+    const btn  = document.getElementById('btn-gen-otp-' + bookingId)
+              || document.getElementById('btn-resend-lab-' + bookingId);
+    const msg  = document.getElementById('lab-otp-msg-' + bookingId);
+
+    if (btn)  { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...'; }
+    if (msg)  { msg.textContent = ''; }
+
+    try {
+        const res  = await fetchWithAuth('api/generate_lab_otp.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ booking_id: bookingId })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (msg) { msg.style.color = '#16A34A'; msg.textContent = '✓ OTP sent to customer!'; }
+            // Refresh after a short moment so the verify input appears
+            setTimeout(() => fetchLabBookings(false), 1200);
+        } else {
+            if (msg) { msg.style.color = '#DC2626'; msg.textContent = data.error || 'Failed to generate OTP'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Generate & Send OTP'; }
+        }
+    } catch(e) {
+        if (msg) { msg.style.color = '#DC2626'; msg.textContent = 'Network error. Please try again.'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Generate & Send OTP'; }
+    }
+}
+
+async function handleAddProduct(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const msg = document.getElementById('p-msg');
+    btn.disabled = true;
+    
+    const payload = {
+        name: document.getElementById('p-name').value,
+        category: document.getElementById('p-cat').value,
+        price: document.getElementById('p-price').value,
+        stock: document.getElementById('p-stock').value,
+        description: document.getElementById('p-desc').value,
+        rx_required: document.getElementById('p-rx').value === 'true',
+        shop_name: localStorage.getItem('medcare_shop_name') || '',
+        retailer_id: localStorage.getItem('medcare_uid') || ''
+    };
+
+    const res = await fetchWithAuth('api/products.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    
+    if (res.ok) {
+        e.target.reset();
+        msg.style.color = 'var(--g600)';
+        msg.textContent = 'Product Added! View it in Inventory.';
+    } else {
+        msg.style.color = 'red';
+        msg.textContent = 'Failed to add product.';
+    }
+    
+    setTimeout(() => { msg.textContent = ''; btn.disabled = false; }, 3000);
+}
+
+// ── INVENTORY ──────────────────────────────────────────────────────────────────
+async function fetchInventory() {
+    const shopName = localStorage.getItem('medcare_shop_name') || '';
+    const uid = localStorage.getItem('medcare_uid');
+    
+    // Fetch shop online/offline status
+    fetchShopStatus();
+    
+    try {
+        const res  = await fetchWithAuth(`api/products.php?role=retailer&uid=${encodeURIComponent(uid)}`);
+        const mine = await res.json();
+
+        document.getElementById('inv-total').textContent = mine.length;
+        const lowCount = mine.filter(p => parseInt(p.stock) < 10).length;
+        document.getElementById('inv-low').textContent = lowCount;
+
+        const tbody = document.getElementById('inv-tbody');
+        if (mine.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--gray400);">No products yet. Click "+ Add Medicine" to get started.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = mine.map(p => {
+            const stockClass = parseInt(p.stock) < 10 ? 'stock-low' : 'stock-ok';
+            const stockIcon  = parseInt(p.stock) < 10 ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>' : '';
+            return `
+            <tr>
+              <td>
+                <div class="inv-name">${p.name}</div>
+                <div class="inv-sub">${p.category || '—'} · ${p.rx_required ? '<span style="color:#EF4444;">Rx Required</span>' : 'OTC'}</div>
+              </td>
+              <td style="font-weight:600; color:var(--gray900);">&#8377;${parseFloat(p.price).toFixed(2)}</td>
+              <td><span class="${stockClass}">${stockIcon}${p.stock ?? 0}</span></td>
+              <td style="text-align:right;">
+                <button class="inv-action-btn edit" onclick="openEditModal('${p.id}','${p.name.replace(/'/g,"\\'")}',${ p.price },${p.stock ?? 0})">Edit</button>
+                <button class="inv-action-btn delete" onclick="deleteProduct('${p.id}')">Delete</button>
+              </td>
+            </tr>`;
+        }).join('');
+    } catch(err) {
+        document.getElementById('inv-tbody').innerHTML = '<tr><td colspan="4" style="color:red; padding:20px;">Error loading inventory.</td></tr>';
+    }
+}
+
+function openEditModal(id, name, price, stock) {
+    document.getElementById('edit-id').value    = id;
+    document.getElementById('edit-name').value  = name;
+    document.getElementById('edit-price').value = price;
+    document.getElementById('edit-stock').value = stock;
+    document.getElementById('edit-msg').textContent = '';
+    document.getElementById('edit-overlay').classList.add('show');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-overlay').classList.remove('show');
+}
+
+async function saveProductEdit() {
+    const id    = document.getElementById('edit-id').value;
+    const name  = document.getElementById('edit-name').value.trim();
+    const price = document.getElementById('edit-price').value;
+    const stock = document.getElementById('edit-stock').value;
+    const msg   = document.getElementById('edit-msg');
+
+    if (!name || !price || stock === '') { msg.style.color='#EF4444'; msg.textContent='Please fill all fields.'; return; }
+
+    msg.style.color = 'var(--gray500)';
+    msg.textContent = 'Saving...';
+
+    const res = await fetchWithAuth('api/products.php', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, price: parseFloat(price), stock: parseInt(stock) })
+    });
+
+    if (res.ok) {
+        msg.style.color = 'var(--g600)';
+        msg.textContent = '✓ Saved!';
+        setTimeout(() => { closeEditModal(); fetchInventory(); }, 800);
+    } else {
+        msg.style.color = '#EF4444';
+        msg.textContent = 'Save failed. Please try again.';
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Delete this product? This cannot be undone.')) return;
+    const res = await fetchWithAuth('api/products.php', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    });
+    if (res.ok) { fetchInventory(); }
+    else { alert('Delete failed. Please try again.'); }
+}
+
+async function handleAddLabTest(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const msg = document.getElementById('lt-msg');
+    btn.disabled = true;
+    
+    const payload = {
+        name: document.getElementById('lt-name').value,
+        price: document.getElementById('lt-price').value,
+        turnaround_time: document.getElementById('lt-turnaround').value,
+        timing: document.getElementById('lt-timing').value,
+        requirements: document.getElementById('lt-req').value,
+        description: document.getElementById('lt-desc').value,
+        lab_name: localStorage.getItem('medcare_shop_name') || 'City PathLabs',
+        lab_id: localStorage.getItem('medcare_uid') || ''
+    };
+
+    const res = await fetchWithAuth('api/lab_tests.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    
+    if (res.ok) {
+        e.target.reset();
+        msg.style.color = 'var(--g600)';
+        msg.textContent = 'Lab Test Added Successfully!';
+    } else {
+        msg.style.color = 'red';
+        msg.textContent = 'Failed to add lab test.';
+    }
+    
+    setTimeout(() => { msg.textContent = ''; btn.disabled = false; }, 3000);
+}
+
+let currentShopStatus = 'online';
+
+async function fetchShopStatus() {
+    try {
+        const res = await fetchWithAuth('api/shop_status.php');
+        const data = await res.json();
+        currentShopStatus = data.status || 'online';
+        updateShopStatusUI();
+        // Sync home collection from server
+        if (typeof data.home_collection !== 'undefined') {
+            homeCollectionEnabled = data.home_collection === true || data.home_collection === 'true';
+            localStorage.setItem('hc_enabled', homeCollectionEnabled);
+            updateHomeCollectionUI();
+        }
+    } catch(e) { }
+}
+
+async function toggleShopStatus() {
+    const btns = document.querySelectorAll('.shop-toggle-btn');
+    btns.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.5'; });
+    
+    const newStatus = currentShopStatus === 'online' ? 'offline' : 'online';
+    
+    try {
+        const res = await fetchWithAuth('api/shop_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            currentShopStatus = data.status;
+            updateShopStatusUI();
+        }
+    } catch(e) { }
+    
+    btns.forEach(btn => { btn.disabled = false; btn.style.opacity = '1'; });
+}
+
+let homeCollectionEnabled = localStorage.getItem('hc_enabled') === 'true';
+
+function updateHomeCollectionUI() {
+    const btn = document.getElementById('hc-toggle-btn');
+    const knob = document.getElementById('hc-knob');
+    const txt = document.getElementById('hc-status-txt');
+    if (!btn || !knob || !txt) return;
+    if (homeCollectionEnabled) {
+        btn.style.background = 'var(--g500)';
+        knob.style.left = '18px';
+        txt.textContent = 'Active';
+        txt.style.color = 'var(--g600)';
+    } else {
+        btn.style.background = '#E2E8F0';
+        knob.style.left = '2px';
+        txt.textContent = 'Inactive';
+        txt.style.color = 'var(--gray400)';
+    }
+}
+
+async function toggleHomeCollection() {
+    homeCollectionEnabled = !homeCollectionEnabled;
+    localStorage.setItem('hc_enabled', homeCollectionEnabled);
+    updateHomeCollectionUI();
+    // Persist to Firebase via shop_status endpoint
+    try {
+        await fetchWithAuth('api/shop_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ home_collection: homeCollectionEnabled })
+        });
+    } catch(e) {}
+}
+
+function updateShopStatusUI() {
+    ['inv-status', 'lab-inv-status'].forEach(id => {
+        const statusDiv = document.getElementById(id);
+        if (!statusDiv) return;
+        const toggleBtn = statusDiv.parentElement.parentElement.querySelector('.shop-toggle-btn');
+        if (toggleBtn) toggleBtn.style.display = 'block';
+        
+        if (currentShopStatus === 'online') {
+            statusDiv.className = 'inv-stat-val ok';
+            statusDiv.style.color = '';
+            statusDiv.style.fontSize = '';
+            statusDiv.innerHTML = '<i class="fa-solid fa-circle" style="font-size:9px; color:var(--g500);"></i> Online';
+            if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Go Offline';
+        } else {
+            statusDiv.className = 'inv-stat-val';
+            statusDiv.style.color = '#DC2626';
+            statusDiv.style.fontSize = '14px';
+            statusDiv.innerHTML = '<i class="fa-solid fa-circle" style="font-size:9px; color:#DC2626;"></i> Offline';
+            if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Go Online';
+        }
+    });
+}
+
+async function fetchLabInventory() {
+    try {
+        const uid = localStorage.getItem('medcare_uid');
+        const res = await fetchWithAuth(`api/lab_tests.php?lab_id=${uid}`);
+        const data = await res.json();
+        
+        document.getElementById('inv-total').textContent = Array.isArray(data) ? data.length : 0;
+        
+        const tbody = document.getElementById('inv-tbody');
+        if (!Array.isArray(data) || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--gray500);">No lab tests created yet.</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(t => {
+            let turnaround = t.turnaround_time ? t.turnaround_time.toString().trim() : '';
+            if (/^\d+$/.test(turnaround)) { 
+                turnaround += ' Hours'; 
+            } else if (turnaround.toLowerCase().includes('hr') || turnaround.toLowerCase().includes('hour')) {
+                turnaround = turnaround.replace(/hours?/ig, 'Hours').replace(/hrs?/ig, 'Hours');
+            }
+
+            html += `<tr>
+                <td style="font-weight:600; color:var(--gray900);">${t.name}</td>
+                <td style="color:var(--gray600);">&#8377;${parseFloat(t.price).toFixed(2)}</td>
+                <td style="color:var(--gray600);"><span style="background:var(--gray100); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600;">${turnaround}</span></td>
+                <td style="text-align:right;">
+                    <span style="font-size:12px; color:#10B981; font-weight:700;"><i class="fa-solid fa-check"></i> Active</span>
+                </td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    } catch(e) { }
+}
+</script>
+</body>
+</html>

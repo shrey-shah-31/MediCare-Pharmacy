@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Sign In & Register</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+body { background: var(--gray50); display: flex; flex-direction: column; min-height: 100vh; }
+.auth-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+.auth-card { background: white; width: 100%; max-width: 440px; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); padding: 40px; }
+.auth-header { text-align: center; margin-bottom: 32px; }
+.auth-title { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--gray900); }
+.auth-tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--gray100); padding: 6px; border-radius: var(--radius-sm); }
+.auth-tab { flex: 1; text-align: center; padding: 10px; font-weight: 600; font-size: 14px; border-radius: 6px; cursor: pointer; color: var(--gray600); transition: all 0.2s; }
+.auth-tab.active { background: white; color: var(--g700); box-shadow: var(--shadow-sm); }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray700); margin-bottom: 6px; }
+.form-group input, .form-group select { width: 100%; padding: 14px; border: 1.5px solid var(--gray200); border-radius: var(--radius-sm); outline: none; font-family: var(--font-body); transition: border-color 0.2s; font-size: 15px; }
+.form-group input:focus, .form-group select:focus { border-color: var(--g600); }
+.btn-submit { width: 100%; justify-content: center; margin-top: 10px; font-size: 16px; padding: 16px; }
+.auth-error { color: #EF4444; font-size: 13px; font-weight: 500; text-align: center; margin-bottom: 16px; display: none; }
+
+/* Divider */
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--gray200); }
+.auth-divider span { font-size: 12px; color: var(--gray400); font-weight: 500; white-space: nowrap; }
+
+/* Google Button */
+.btn-google {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1.5px solid var(--gray200);
+  border-radius: var(--radius-sm);
+  background: white;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray800);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+}
+.btn-google:hover { background: var(--gray50); border-color: var(--gray400); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.btn-google img { width: 20px; height: 20px; }
+.btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Role Selection Modal */
+.role-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+.role-overlay.show { display: flex; }
+.role-modal {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: 40px;
+  max-width: 460px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+.role-modal h2 { font-family: var(--font-display); font-size: 24px; margin-bottom: 8px; color: var(--gray900); }
+.role-modal p { font-size: 14px; color: var(--gray500); margin-bottom: 28px; }
+.role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.role-card {
+  border: 2px solid var(--gray200);
+  border-radius: var(--radius-md);
+  padding: 24px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.role-card:hover { border-color: var(--g500); background: var(--g50); transform: translateY(-2px); }
+.role-card.selected { border-color: var(--g600); background: var(--g50); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+.role-card i { font-size: 32px; color: var(--g600); margin-bottom: 12px; display: block; }
+.role-card strong { display: block; font-size: 15px; color: var(--gray900); margin-bottom: 4px; }
+.role-card span { font-size: 12px; color: var(--gray500); }
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="index.html" class="btn btn-outline" style="padding:10px 20px;font-size:14px;"><i class="fa-solid fa-arrow-left"></i> Home</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title" id="auth-title">Welcome Back</h1>
+      <p style="font-size:14px; color:var(--gray500); margin-top:8px;">Sign in or create a new account</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="toggleAuth('login')">Sign In</div>
+      <div class="auth-tab" id="tab-register" onclick="toggleAuth('register')">Register</div>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+
+    <!-- Google OAuth Button -->
+    <button class="btn-google" id="btn-google" onclick="handleGoogleSignIn()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Continue with Google
+    </button>
+
+    <div class="auth-divider" id="auth-divider"><span>or continue with email</span></div>
+
+    <!-- LOGIN FORM -->
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="john@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-submit">Sign In <i class="fa-solid fa-arrow-right"></i></button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="form-register" style="display: none;" onsubmit="handleRegister(event)">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="John Doe" required>
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="reg-email" placeholder="john@example.com" required>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label>City</label>
+          <input type="text" id="reg-city" placeholder="Vadodara" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label>State</label>
+          <select id="reg-state" required>
+            <option value="" disabled selected>Select State</option>
+            <option value="Andhra Pradesh">Andhra Pradesh</option>
+            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+            <option value="Assam">Assam</option>
+            <option value="Bihar">Bihar</option>
+            <option value="Chhattisgarh">Chhattisgarh</option>
+            <option value="Goa">Goa</option>
+            <option value="Gujarat">Gujarat</option>
+            <option value="Haryana">Haryana</option>
+            <option value="Himachal Pradesh">Himachal Pradesh</option>
+            <option value="Jharkhand">Jharkhand</option>
+            <option value="Karnataka">Karnataka</option>
+            <option value="Kerala">Kerala</option>
+            <option value="Madhya Pradesh">Madhya Pradesh</option>
+            <option value="Maharashtra">Maharashtra</option>
+            <option value="Manipur">Manipur</option>
+            <option value="Meghalaya">Meghalaya</option>
+            <option value="Mizoram">Mizoram</option>
+            <option value="Nagaland">Nagaland</option>
+            <option value="Odisha">Odisha</option>
+            <option value="Punjab">Punjab</option>
+            <option value="Rajasthan">Rajasthan</option>
+            <option value="Sikkim">Sikkim</option>
+            <option value="Tamil Nadu">Tamil Nadu</option>
+            <option value="Telangana">Telangana</option>
+            <option value="Tripura">Tripura</option>
+            <option value="Uttar Pradesh">Uttar Pradesh</option>
+            <option value="Uttarakhand">Uttarakhand</option>
+            <option value="West Bengal">West Bengal</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Min 6 characters" minlength="6" required>
+      </div>
+      <div class="form-group" id="shop-name-group" style="display:none;">
+        <label><i class="fa-solid fa-store" style="color:var(--g600); margin-right:6px;"></i>Shop / Pharmacy Name</label>
+        <input type="text" id="reg-shop-name" placeholder="e.g. Sharma Medical Store">
+      </div>
+      <div class="form-group">
+        <label>Account Type</label>
+        <select id="reg-role" onchange="toggleShopName()">
+          <option value="customer">Customer</option>
+          <option value="retailer">Pharmacy Retailer</option>
+          <option value="laboratory">Laboratory Partner</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-submit">Create Account <i class="fa-solid fa-user-plus"></i></button>
+    </form>
+  </div>
+</div>
+
+<!-- Role Selection Modal (shown for new Google users) -->
+<div class="role-overlay" id="role-overlay">
+  <div class="role-modal">
+    <h2>One Last Step!</h2>
+    <p>Choose how you'd like to use MediCare with your Google account.</p>
+    <div class="role-cards" style="grid-template-columns: 1fr; gap: 12px;">
+      <div class="role-card" id="card-customer" onclick="selectRole('customer')">
+        <i class="fa-solid fa-user-injured"></i>
+        <strong>Customer</strong>
+        <span>Browse & order medicines</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="role-card" id="card-retailer" onclick="selectRole('retailer')" style="padding:16px;">
+          <i class="fa-solid fa-store"></i>
+          <strong>Pharmacy Retailer</strong>
+          <span>Sell & manage inventory</span>
+        </div>
+        <div class="role-card" id="card-laboratory" onclick="selectRole('laboratory')" style="padding:16px;">
+          <i class="fa-solid fa-flask"></i>
+          <strong>Laboratory Partner</strong>
+          <span>Manage lab tests</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-confirm-role" onclick="confirmRole()" style="width:100%;padding:16px;font-size:16px;" disabled>
+      Continue <i class="fa-solid fa-arrow-right"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Firebase JS SDK (compat version — works without bundler) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// ── Firebase init ──────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyB6sdvexQIxMKihrUJAEwBHl71_Znagv1U",
+  authDomain: "medcare-pharmacy-11f7c.firebaseapp.com",
+  databaseURL: "https://medcare-pharmacy-11f7c-default-rtdb.firebaseio.com",
+  projectId: "medcare-pharmacy-11f7c",
+  storageBucket: "medcare-pharmacy-11f7c.firebasestorage.app",
+  messagingSenderId: "660996601166",
+  appId: "1:660996601166:web:7e0a2f8a1e5195a1915a1f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+// ── UI helpers ─────────────────────────────────────────────────────────────────
+function toggleAuth(mode) {
+  document.getElementById('auth-error').style.display = 'none';
+  const isLogin = mode === 'login';
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedRole = urlParams.get('role');
+  let titleStr = requestedRole === 'retailer' ? 'Partner Portal' : 'Customer Portal';
+
+  // Manage Role Dropdown dynamically based on portal context
+  const roleSelect = document.getElementById('reg-role');
+  const roleGroup = roleSelect.parentElement;
+  
+  if (!roleSelect.dataset.initialized) {
+      if (requestedRole === 'retailer') {
+          roleGroup.style.display = 'block';
+          roleSelect.innerHTML = '<option value="retailer">Pharmacy Retailer</option><option value="laboratory">Laboratory Partner</option>';
+      } else {
+          roleGroup.style.display = 'none'; // Hide entirely for customers
+          roleSelect.innerHTML = '<option value="customer">Customer</option>';
+      }
+      roleSelect.dataset.initialized = 'true';
+      toggleShopName(); // Ensure shop name fields show/hide correctly
+  }
+
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-register').classList.toggle('active', !isLogin);
+  
+  // Toggle forms
+  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('form-register').style.display = isLogin ? 'none' : 'block';
+  
+  // Conditionally hide Google logic from Registration
+  document.getElementById('btn-google').style.display = isLogin ? 'flex' : 'none';
+  const divider = document.getElementById('auth-divider');
+  if (divider) divider.style.display = isLogin ? 'flex' : 'none';
+
+  document.getElementById('auth-title').textContent = isLogin ? 'Welcome to ' + titleStr : 'Create ' + titleStr + ' Account';
+}
+
+function toggleShopName() {
+  const role = document.getElementById('reg-role').value;
+  const group = document.getElementById('shop-name-group');
+  const input = document.getElementById('reg-shop-name');
+  const label = group.querySelector('label');
+  
+  if (role === 'retailer') {
+      group.style.display = 'block';
+      input.required = true;
+      label.innerHTML = '<i class="fa-solid fa-store" style="color:var(--g600); margin-right:6px;"></i>Shop / Pharmacy Name';
+      input.placeholder = "e.g. Sharma Medical Store";
+  } else if (role === 'laboratory') {
+      group.style.display = 'block';
+      input.required = true;
+      label.innerHTML = '<i class="fa-solid fa-flask" style="color:var(--g600); margin-right:6px;"></i>Laboratory Name';
+      input.placeholder = "e.g. City Path Labs";
+  } else {
+      group.style.display = 'none';
+      input.required = false;
+  }
+}
+
+function showError(msg) {
+  const err = document.getElementById('auth-error');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+function saveSessionAndRedirect(user, role, name, shopName = '') {
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedRole = urlParams.get('role');
+
+  const isPartnerLogin = requestedRole === 'retailer' || requestedRole === 'partner' || requestedRole === 'laboratory';
+  const isUserPartner = role === 'retailer' || role === 'laboratory';
+
+  if (requestedRole) {
+      if (requestedRole === 'customer' && isUserPartner) {
+          const btn = document.getElementById('btn-google');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> Continue with Google'; }
+          const confirmBtn = document.getElementById('btn-confirm-role');
+          if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = 'Continue <i class="fa-solid fa-arrow-right"></i>'; }
+
+          showError('This is a Partner account. Please use Partner Login.');
+          auth.signOut();
+          return;
+      } else if (isPartnerLogin && role === 'customer') {
+          const btn = document.getElementById('btn-google');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> Continue with Google'; }
+          const confirmBtn = document.getElementById('btn-confirm-role');
+          if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = 'Continue <i class="fa-solid fa-arrow-right"></i>'; }
+
+          showError('This is a Customer account. Please use Customer Login.');
+          auth.signOut();
+          return;
+      }
+  }
+
+  // Ensure full Firebase Token Manager properties are passed locally for the new Interceptor
+  user.getIdTokenResult().then(idTokenResult => {
+    localStorage.setItem('medcare_idToken', idTokenResult.token);
+    localStorage.setItem('medcare_tokenExpiresAt', new Date(idTokenResult.expirationTime).getTime());
+    localStorage.setItem('medcare_refreshToken', user.refreshToken || '');
+    localStorage.setItem('medcare_uid', user.uid);  // stable Firebase UID for order lookup
+    localStorage.setItem('medcare_role', role);
+    localStorage.setItem('medcare_name', name);
+    if (shopName) localStorage.setItem('medcare_shop_name', shopName);
+    
+    // Fallback support for legacy
+    localStorage.setItem('medcare_token', idTokenResult.token);
+    
+    window.location.href = isUserPartner ? 'retailer.html' : 'index.html';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedRole = urlParams.get('role');
+  if (requestedRole) {
+    document.getElementById('reg-role').value = requestedRole;
+    toggleShopName();
+    let titleStr = requestedRole === 'retailer' ? 'Partner Portal' : 'Customer Portal';
+    document.getElementById('auth-title').textContent = 'Welcome to ' + titleStr;
+  }
+});
+
+// ── Google OAuth ───────────────────────────────────────────────────────────────
+let pendingGoogleUser = null; // holds the Firebase user while role is being picked
+let selectedRole = null;
+
+async function handleGoogleSignIn() {
+  const btn = document.getElementById('btn-google');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+    const uid = user.uid;
+
+    // Check if a profile already exists in Realtime DB
+    const snap = await db.ref('users/' + uid).once('value');
+    const isLoginTab = document.getElementById('tab-login').classList.contains('active');
+
+    if (snap.exists()) {
+      // Returning Google user — use saved role
+      const profile = snap.val();
+      saveSessionAndRedirect(user, profile.role || 'customer', profile.name || user.displayName || 'User', profile.shop_name || '');
+    } else {
+      if (isLoginTab) {
+        // User tried to sign in with Google, but hasn't registered in our system yet
+        await auth.signOut();
+        showError("Account doesn't exist. Please switch to 'Register' to create a new account.");
+        btn.disabled = false;
+        btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> Continue with Google';
+        return;
+      }
+      
+      // NEW user on Register tab — show role picker modal
+      pendingGoogleUser = user;
+      document.getElementById('role-overlay').classList.add('show');
+      btn.disabled = false;
+      btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> Continue with Google';
+    }
+
+  } catch (err) {
+    showError(err.message || 'Google sign-in failed. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> Continue with Google';
+  }
+}
+
+function selectRole(role) {
+  selectedRole = role;
+  document.getElementById('card-customer').classList.toggle('selected', role === 'customer');
+  document.getElementById('card-retailer').classList.toggle('selected', role === 'retailer');
+  const cardLab = document.getElementById('card-laboratory');
+  if (cardLab) cardLab.classList.toggle('selected', role === 'laboratory');
+  document.getElementById('btn-confirm-role').disabled = false;
+}
+
+async function confirmRole() {
+  if (!pendingGoogleUser || !selectedRole) return;
+  const btn = document.getElementById('btn-confirm-role');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  btn.disabled = true;
+
+  const user = pendingGoogleUser;
+  const name = user.displayName || 'User';
+
+  let shopName = '';
+  if (selectedRole === 'retailer') shopName = name + "'s Pharmacy";
+  if (selectedRole === 'laboratory') shopName = name + " Path Labs";
+
+  // Save profile to Firebase Realtime DB
+  await db.ref('users/' + user.uid).set({
+    name: name,
+    email: user.email,
+    role: selectedRole,
+    shop_name: shopName,
+    created_at: Date.now()
+  });
+
+  saveSessionAndRedirect(user, selectedRole, name, shopName);
+}
+
+// ── Email / Password Login ─────────────────────────────────────────────────────
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const btn = e.target.querySelector('button');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+  try {
+    const res = await fetch('api/login.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const text = await res.text();
+    console.log('Raw login response:', text);
+    
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (err) {
+        throw new Error('Server error: Invalid JSON response. Check console.');
+    }
+    
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    // Check if they are logging into the wrong portal
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedRole = urlParams.get('role');
+    
+    const isPartnerLogin = requestedRole === 'retailer' || requestedRole === 'partner' || requestedRole === 'laboratory';
+    const isUserPartner = data.role === 'retailer' || data.role === 'laboratory';
+
+    if (requestedRole) {
+        if (requestedRole === 'customer' && isUserPartner) {
+             throw new Error('This is a Partner account. Please use Partner Login.');
+        } else if (isPartnerLogin && data.role === 'customer') {
+             throw new Error('This is a Customer account. Please use Customer Login.');
+        }
+    }
+
+    localStorage.setItem('idToken', data.idToken);
+    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('tokenExpiresAt', Date.now() + (parseInt(data.expiresIn || 3600) * 1000));
+    
+    // Legacy support
+    localStorage.setItem('medcare_token', data.idToken);
+    localStorage.setItem('medcare_uid', data.localId);  // stable Firebase UID for order lookup
+    localStorage.setItem('medcare_role', data.role);
+    localStorage.setItem('medcare_name', data.name);
+    if (data.shop_name) localStorage.setItem('medcare_shop_name', data.shop_name);
+
+    window.location.href = isUserPartner ? 'retailer.html' : 'index.html';
+  } catch (error) {
+    showError(error.message);
+    btn.innerHTML = 'Sign In <i class="fa-solid fa-arrow-right"></i>';
+  }
+}
+
+// ── Email / Password Register ──────────────────────────────────────────────────
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('reg-name').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  const city = document.getElementById('reg-city').value;
+  const state = document.getElementById('reg-state').value;
+  const role = document.getElementById('reg-role').value;
+  const shopName = (role === 'retailer' || role === 'laboratory') ? document.getElementById('reg-shop-name').value.trim() : '';
+  const btn = e.target.querySelector('button');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+  try {
+    const res = await fetch('api/register.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role, shop_name: shopName, city, state })
+    });
+    
+    const text = await res.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (err) {
+        throw new Error('Server error: Invalid JSON response. Check console.');
+    }
+    
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+    localStorage.setItem('idToken', data.idToken);
+    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('tokenExpiresAt', Date.now() + (parseInt(data.expiresIn || 3600) * 1000));
+
+    localStorage.setItem('medcare_token', data.idToken);
+    localStorage.setItem('medcare_uid', data.localId);  // stable Firebase UID for order lookup
+    localStorage.setItem('medcare_role', data.role);
+    localStorage.setItem('medcare_name', data.name);
+    if (data.shop_name) localStorage.setItem('medcare_shop_name', data.shop_name);
+
+    const isUserPartner = data.role === 'retailer' || data.role === 'laboratory';
+    window.location.href = isUserPartner ? 'retailer.html' : 'index.html';
+  } catch (error) {
+    showError(error.message);
+    btn.innerHTML = 'Create Account <i class="fa-solid fa-user-plus"></i>';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCare — Shop Products</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+.shop-layout { display: grid; grid-template-columns: 280px 1fr; gap: 40px; margin: 40px 0 80px; }
+.shop-sidebar { background: white; border: 1.5px solid var(--gray200); border-radius: var(--radius-lg); padding: 24px; position: sticky; top: 100px; height: fit-content; }
+.shop-sidebar h3 { font-family: var(--font-display); font-size: 16px; margin-bottom: 16px; color: var(--gray900); }
+.filter-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+.filter-list-item { display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: var(--gray600); cursor: pointer; }
+.filter-list-item input { margin-right: 12px; accent-color: var(--g600); }
+.shop-main { width: 100%; }
+.shop-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+#dynamic-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.loading { grid-column: 1 / -1; text-align: center; padding: 60px 0; font-size: 16px; color: var(--gray500); }
+
+@media(max-width: 1024px) {
+  .shop-layout { grid-template-columns: 1fr; }
+  .shop-sidebar { position: static; }
+}
+@media(max-width: 768px) {
+  #dynamic-products { grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 480px) {
+  #dynamic-products { grid-template-columns: 1fr; }
+}
+</style>
+<script src="assets/js/auth_helper.js"></script>
+</head>
+<body>
+
+<nav id="navbar" class="scrolled">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fa-solid fa-capsules"></i></div>
+        <span class="nav-logo-text">Medi<span>Care</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="cart.html" class="nav-cart" style="display: flex;">
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span class="nav-cart-badge id-cart-badge">0</span>
+        </a>
+        <div id="auth-buttons">
+            <a href="auth.html?role=customer" style="background:#E0F7FA; color:#00838F; border:1px solid #B2EBF2; padding:10px 20px; font-size:14px; border-radius:6px; font-weight:600; text-decoration:none; margin-right:8px;">Customer Login</a>
+            <a href="auth.html?role=retailer" style="background:#3B82F6; color:white; border:1px solid #3B82F6; padding:10px 20px; font-size:14px; border-radius:6px; font-weight:600; text-decoration:none;">Partner Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container" style="padding-top: var(--nav-h);">
+  <div class="shop-layout">
+    
+    <!-- SIDEBAR -->
+    <aside class="shop-sidebar">
+      <h3>Categories</h3>
+      <div class="filter-list">
+        <label class="filter-list-item"><span><input type="radio" name="category" value="All Products" checked onchange="filterProducts()"> All Products</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="category" value="Pain Relief" onchange="filterProducts()"> Pain Relief</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="category" value="Cold & Flu" onchange="filterProducts()"> Cold & Flu</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="category" value="Vitamins" onchange="filterProducts()"> Vitamins</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="category" value="Digestive Health" onchange="filterProducts()"> Digestive Health</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="category" value="First Aid" onchange="filterProducts()"> First Aid</span></label>
+      </div>
+      
+      <h3>Price Range</h3>
+      <div class="filter-list">
+        <label class="filter-list-item"><span><input type="radio" name="price" value="all" checked onchange="filterProducts()"> All Prices</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="price" value="under_100" onchange="filterProducts()"> Under &#8377;100</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="price" value="100_500" onchange="filterProducts()"> &#8377;100 - &#8377;500</span></label>
+        <label class="filter-list-item"><span><input type="radio" name="price" value="over_500" onchange="filterProducts()"> Over &#8377;500</span></label>
+      </div>
+    </aside>
+
+    <!-- MAIN PRODUCT LIST -->
+    <main class="shop-main">
+      <div class="shop-header">
+        <div style="display:flex; align-items:center; gap: 16px;">
+            <h1 class="section-title" id="shop-city-title" style="text-align: left; font-size: 28px; margin:0;">All Medicines & Products</h1>
+            <select id="city-select" onchange="changeCity(this.value)" style="font-family:var(--font-display); font-size:26px; font-weight:700; color:var(--g700); border:none; border-bottom:2px dashed var(--g300); outline:none; background:transparent; display:none; cursor:pointer; padding: 0 28px 4px 4px; appearance:none; -webkit-appearance:none; background-image: url('data:image/svg+xml;utf8,<svg fill=%22%2316A34A%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>'); background-repeat:no-repeat; background-position: right 0px center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--g500)';" onmouseout="this.style.borderColor='var(--g300)';">
+                <option value="Vadodara">Vadodara, Gujarat</option>
+                <option value="Mumbai">Mumbai, Maharashtra</option>
+                <option value="Delhi">New Delhi, Delhi</option>
+                <option value="Pune">Pune, Maharashtra</option>
+                <option value="Ahmedabad">Ahmedabad, Gujarat</option>
+                <option value="Bengaluru">Bengaluru, Karnataka</option>
+                <option value="Hyderabad">Hyderabad, Telangana</option>
+                <option value="Chennai">Chennai, Tamil Nadu</option>
+                <option value="Kolkata">Kolkata, West Bengal</option>
+                <option value="Jaipur">Jaipur, Rajasthan</option>
+                <option value="Surat">Surat, Gujarat</option>
+                <option value="Lucknow">Lucknow, Uttar Pradesh</option>
+                <option value="Kanpur">Kanpur, Uttar Pradesh</option>
+                <option value="Nagpur">Nagpur, Maharashtra</option>
+                <option value="Indore">Indore, Madhya Pradesh</option>
+                <option value="Thane">Thane, Maharashtra</option>
+                <option value="Bhopal">Bhopal, Madhya Pradesh</option>
+                <option value="Visakhapatnam">Visakhapatnam, Andhra Pradesh</option>
+                <option value="Patna">Patna, Bihar</option>
+                <option value="Ludhiana">Ludhiana, Punjab</option>
+                <option value="Agra">Agra, Uttar Pradesh</option>
+                <option value="Nashik">Nashik, Maharashtra</option>
+            </select>
+        </div>
+        <select id="sort-select" onchange="filterProducts()" style="padding: 8px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray200); outline: none;">
+          <option value="popular">Sort by: Most Popular</option>
+          <option value="low_high">Price: Low to High</option>
+          <option value="high_low">Price: High to Low</option>
+        </select>
+      </div>
+
+      <div id="dynamic-products">
+        <div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading latest products...</div>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<script>
+// --- Global Data & State ---
+let allProducts = [];
+let cart = JSON.parse(localStorage.getItem('medcare_cart')) || {};
+
+// Refresh Navigation specific
+function updateNav() {
+    const userRole = localStorage.getItem('medcare_role');
+    const userName = localStorage.getItem('medcare_name');
+    const authContainer = document.getElementById('auth-buttons');
+    if (userRole) {
+        authContainer.innerHTML = `<span style="font-size:14px; margin-right:12px; font-weight:600;">Hi, ${userName}</span>
+        <button onclick="logout()" class="btn btn-outline" style="padding:8px 16px;font-size:13px;">Logout</button>`;
+    }
+    
+    // Update Cart Badge
+    const cartBadge = document.querySelector('.nav-cart-badge');
+    const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
+    cartBadge.textContent = totalItems;
+    cartBadge.style.display = totalItems > 0 ? 'flex' : 'none';
+}
+
+function logout() {
+    localStorage.removeItem('medcare_token');
+    localStorage.removeItem('medcare_uid');
+    localStorage.removeItem('medcare_role');
+    localStorage.removeItem('medcare_name');
+    window.location.reload();
+}
+
+async function fetchProducts() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        let city = urlParams.get('city');
+        if (!city) {
+            const m = document.cookie.match(/medcare_user_city=([^;]+)/);
+            if (m && m[1]) city = decodeURIComponent(m[1]);
+        }
+
+        const uid = localStorage.getItem('medcare_uid');
+        let url = 'api/products.php';
+        const params = new URLSearchParams();
+        if (uid) params.append('customer_id', uid);
+        if (city) params.append('city', city);
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+
+        const response = await fetchWithAuth(url);
+        const data = await response.json();
+        allProducts = data;
+
+        // Update UI
+        if (city) {
+            let properCity = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
+            document.getElementById('shop-city-title').textContent = 'Nearby Shops in ';
+            const citySelect = document.getElementById('city-select');
+            citySelect.style.display = 'block';
+            let optionExists = Array.from(citySelect.options).some(opt => opt.value === properCity);
+            if (!optionExists) {
+                const opt = document.createElement('option');
+                opt.value = opt.textContent = properCity;
+                citySelect.appendChild(opt);
+            }
+            citySelect.value = properCity;
+        }
+        
+        // If DB is totally empty, seed a mock product to show the interface
+        if (allProducts.length === 0) {
+            allProducts = [
+                { id: 'mock1', name: 'Paracetamol 500mg', category: 'Pain Relief', price: 45, old_price: 60, rating: 5.0, icon: 'fa-prescription-bottle-medical', description: 'Fast acting pain relief', rx_required: false },
+                { id: 'mock2', name: 'Vitamin C 500mg', category: 'Vitamins', price: 120, old_price: null, rating: 4.8, icon: 'fa-tablets', description: 'Immunity booster', rx_required: false },
+                { id: 'mock3', name: 'Amlodipine 5mg', category: 'Heart & BP', price: 150, old_price: null, rating: 4.8, icon: 'fa-heart-pulse', description: 'Blood pressure medication', rx_required: true }
+            ];
+        }
+        
+        const query = urlParams.get('q');
+        
+        if (query) {
+            const radio = document.querySelector(`input[name="category"][value="${query}"]`);
+            if (radio) {
+                radio.checked = true;
+            } else {
+                window.currentSearchQuery = query;
+            }
+        }
+        
+        filterProducts();
+    } catch (error) {
+        document.getElementById('dynamic-products').innerHTML = '<div class="loading" style="color:red">Failed to load products. Check server.</div>';
+    }
+}
+
+function filterProducts() {
+    const selectedCategory = document.querySelector('input[name="category"]:checked')?.value;
+    const selectedPrice = document.querySelector('input[name="price"]:checked')?.value || 'all';
+    const sortOption = document.getElementById('sort-select').value;
+    
+    let filtered = [...allProducts];
+    
+    if (window.currentSearchQuery) {
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(window.currentSearchQuery.toLowerCase()));
+    }
+    
+    if (selectedCategory && selectedCategory !== 'All Products') {
+        filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+    
+    if (selectedPrice === 'under_100') {
+        filtered = filtered.filter(p => parseFloat(p.price) < 100);
+    } else if (selectedPrice === '100_500') {
+        filtered = filtered.filter(p => parseFloat(p.price) >= 100 && parseFloat(p.price) <= 500);
+    } else if (selectedPrice === 'over_500') {
+        filtered = filtered.filter(p => parseFloat(p.price) > 500);
+    }
+    
+    if (sortOption === 'low_high') {
+        filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    } else if (sortOption === 'high_low') {
+        filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    } else {
+        filtered.sort((a, b) => parseFloat(b.rating || 0) - parseFloat(a.rating || 0));
+    }
+    
+    renderProducts(filtered);
+}
+
+function renderProducts(products) {
+    const grid = document.getElementById('dynamic-products');
+    grid.innerHTML = '';
+    
+    products.forEach(p => {
+        const cartQty = cart[p.id] ? cart[p.id].quantity : 0;
+        
+        const priceStr = `&#8377;${p.price.toFixed(2)}`;
+        const oldPriceStr = p.old_price ? ` <span class="product-price-old">&#8377;${p.old_price.toFixed(2)}</span>` : '';
+        
+        const rxBadge = p.rx_required === true ? '<div style="position:absolute; top:12px; left:12px; background:#EF4444; color:white; font-size:10px; font-weight:700; padding:4px 8px; border-radius:4px; z-index:2;"><i class="fa-solid fa-file-prescription"></i> RX REQUIRED</div>' : '';
+        
+        grid.innerHTML += `
+        <div class="product-card fade-up visible">
+            <div class="product-img">
+              ${rxBadge}
+              <i class="fa-solid ${p.icon || 'fa-pills'} product-img-icon"></i>
+            </div>
+            <div class="product-body">
+              <div class="product-cat">${p.category}</div>
+              <div class="product-name">${p.name}</div>
+              <div class="product-desc">${p.description}</div>
+              <div style="font-size:11px; color:var(--gray500); margin-top:8px;">
+              <div style="font-size:11px; color:var(--gray500); margin-top:8px;">
+                <span style="font-weight:600; color:var(--gray700);">Shop:</span><br>
+                <span style="font-weight:600; color:${p.shop_status === 'offline' ? '#EF4444' : 'var(--gray900)'}; font-size:13px;">${p.shop_name || 'MediCare Pharmacy'} ${p.shop_status === 'offline' ? '<span style="font-size:10px; border:1px solid #FECACA; background:#FEF2F2; padding:2px 4px; border-radius:4px; margin-left:4px;">OFFLINE</span>' : ''}</span>
+                ${p.shop_city ? `<br><span style="margin-top:2px; display:inline-block;">Location: <span style="font-weight:500; color:var(--gray600);">${p.shop_city}${p.shop_state ? ', ' + p.shop_state : ''}</span></span>` : ''}
+              </div>
+              <div class="product-rating" style="margin-top:12px;">
+                <span class="product-rating-val"><i class="fa-solid fa-star" style="color:#FBBF24; font-size:12px;"></i> ${p.rating}</span>
+              </div>
+              <div class="product-footer">
+                <div><span class="product-price">${priceStr}</span>${oldPriceStr}</div>
+                ${p.shop_status === 'offline' ? 
+                  `<div style="font-size:11px; font-weight:700; color:#EF4444; background:#FEF2F2; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-lock"></i> Currently Closed</div>` :
+                  `<div class="product-add">
+                     <button class="product-qty-btn" onclick="updateCart('${p.id}', -1)"><i class="fa-solid fa-minus"></i></button>
+                     <span class="product-qty" id="qty-${p.id}">${cartQty}</span>
+                     <button class="product-qty-btn" onclick="updateCart('${p.id}', 1, \`${p.name}\`, ${p.price}, ${p.rx_required === true}, \`${p.shop_name || 'MediCare Pharmacy'}\`)"><i class="fa-solid fa-plus"></i></button>
+                   </div>`
+                }
+              </div>
+            </div>
+        </div>`;
+    });
+}
+
+window.updateCart = function(id, change, name, price, rx_required, shop_name) {
+    if (!cart[id]) {
+        if (change < 0) return; // Can't go below 0
+        cart[id] = { id, name, price, quantity: 0, rx_required: rx_required, shop_name: shop_name };
+    }
+    
+    cart[id].quantity += change;
+    if (cart[id].quantity <= 0) {
+        delete cart[id];
+        document.getElementById(`qty-${id}`).textContent = '0';
+    } else {
+        document.getElementById(`qty-${id}`).textContent = cart[id].quantity;
+    }
+    
+    localStorage.setItem('medcare_cart', JSON.stringify(cart));
+    updateNav();
+};
+
+window.changeCity = function(newCity) {
+    document.cookie = "medcare_user_city=" + encodeURIComponent(newCity) + "; path=/; max-age=" + (86400 * 30);
+    window.location.href = 'shop.html?city=' + encodeURIComponent(newCity);
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    updateNav();
+    fetchProducts();
+});
+</script>
+</body>
+</html>

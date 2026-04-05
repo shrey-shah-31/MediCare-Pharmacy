@@ -1,0 +1,25 @@
+Options -Indexes
+
+# Pass Authorization header through LiteSpeed (InfinityFree fix)
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# Remove .php extension from API calls (optional)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^api/(.*)$ api/$1.php [L,QSA]
+
+# Security: block direct access to sensitive files
+<FilesMatch "\.(env|log|txt|md|json|py|sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+<Files "firebase_rules.json">
+    Order allow,deny
+    Deny from all
+</Files>
+<Files "sms_log.txt">
+    Order allow,deny
+    Deny from all
+</Files>
